@@ -74,6 +74,21 @@
   characterAssets.drawStage.src = "assets/backgrounds/draw-stage.png";
   characterAssets.championArena.src = "assets/backgrounds/champion-arena.png";
 
+  const visualAssetsReady = Promise.allSettled(Object.values(characterAssets).map((image) => {
+    if (image.complete && image.naturalWidth) return Promise.resolve();
+    return new Promise((resolve) => {
+      image.addEventListener("load", resolve, { once: true });
+      image.addEventListener("error", resolve, { once: true });
+    });
+  }));
+
+  function waitForVisualAssets(maxWait = 6000) {
+    return Promise.race([
+      visualAssetsReady,
+      new Promise((resolve) => setTimeout(resolve, maxWait))
+    ]);
+  }
+
   function uid() {
     return `p_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 7)}`;
   }
@@ -826,7 +841,7 @@
     renderSharePage(payload);
   }
 
-  function playFinalStairScene(firstId, lastId) {
+  async function playFinalStairScene(firstId, lastId) {
     showOnly("finalStair");
     cancelAnimationFrame(stairAnimationFrame);
     const canvas = refs.finalStairCanvas;
@@ -835,7 +850,7 @@
     const last = participantById(lastId);
     const reducedMotion = matchMedia("(prefers-reduced-motion: reduce)").matches;
     const duration = reducedMotion ? 1300 : 8200;
-    let startedAt = performance.now();
+    let startedAt = 0;
     let completed = false;
     let lastCaption = "";
 
@@ -970,6 +985,9 @@
       }
       stairAnimationFrame = requestAnimationFrame(frame);
     }
+    await waitForVisualAssets();
+    if (views.finalStair.hidden) return;
+    startedAt = performance.now();
     stairAnimationFrame = requestAnimationFrame(frame);
   }
 
@@ -1099,7 +1117,7 @@
     refs.celebrationCanvas.hidden = true;
     trainer.dataset.state = "idle";
     beat.textContent = "두구두구...";
-    resultView.classList.remove("playing");
+    resultView.classList.remove("playing", "reveal-now");
     setCreditsVisible(false);
     refs.endingCredits.scrollTop = 0;
     intro.classList.remove("done");
@@ -1124,6 +1142,7 @@
   $("#skipResultReveal").addEventListener("click", () => {
     resultTimers.forEach(clearTimeout);
     resultTimers = [];
+    views.result.classList.add("reveal-now");
     $("#resultIntro").classList.add("done");
     $("#resultTrainer").dataset.state = "victory";
     startFireworks(3000);
@@ -1161,14 +1180,14 @@
   });
 
   // Canvas draw animation ---------------------------------------------------
-  function startDrawAnimation() {
+  async function startDrawAnimation() {
     showOnly("animation");
     cancelAnimationFrame(animationFrame);
     const canvas = $("#tournamentAnimation");
     const context = canvas.getContext("2d");
     const reducedMotion = matchMedia("(prefers-reduced-motion: reduce)").matches;
     const duration = reducedMotion ? 1100 : 7600;
-    let startedAt = performance.now();
+    let startedAt = 0;
     let particles = [];
     let exploded = false;
 
@@ -1365,6 +1384,11 @@
       }
       animationFrame = requestAnimationFrame(frame);
     }
+    drawStage(0, 0);
+    centerText("캐릭터 불러오는 중...", Math.max(65, innerHeight * .12), Math.min(24, innerWidth * .05), "#fff5cf");
+    await waitForVisualAssets();
+    if (views.animation.hidden) return;
+    startedAt = performance.now();
     animationFrame = requestAnimationFrame(frame);
   }
 
