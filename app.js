@@ -912,6 +912,11 @@
       context.fillText(label, x, y + 1, width - 18);
     }
 
+    function nameplateAbove(feetY, spriteSize) {
+      const safeTop = innerWidth <= 700 ? 92 : 96;
+      return Math.max(safeTop, feetY - spriteSize - 30);
+    }
+
     function setCaption(value) {
       if (value === lastCaption) return;
       lastCaption = value;
@@ -955,18 +960,20 @@
       else setCaption(`${honorName(first?.name || "")} 최종 1위!`);
 
       drawSprite(characterAssets.trainer, winnerFrame, winnerX, winnerY, size, { mirror: false, glow: elapsed > 5600 ? "#ffd84d" : "rgba(72,199,255,.35)" });
-      drawNameplate(first?.name || "", winnerX, winnerY - size * .9, "#ffd84d");
+      drawNameplate(first?.name || "", winnerX, nameplateAbove(winnerY, size), "#ffd84d");
 
       if (elapsed < 3300) {
-        drawSprite(characterAssets.trainer, 1, lastX, lastY, size * .94, { mirror: true, filter: "hue-rotate(-18deg) saturate(.86)" });
-        drawNameplate(last?.name || "", lastX, lastY - size * .84, "#ff6b87");
+        const lastSize = size * .94;
+        drawSprite(characterAssets.trainer, 1, lastX, lastY, lastSize, { mirror: true, filter: "hue-rotate(-18deg) saturate(.86)" });
+        drawNameplate(last?.name || "", lastX, nameplateAbove(lastY, lastSize), "#ff6b87");
       } else {
         const fallAge = elapsed - 3300;
         const fallFrame = fallAge < 330 ? 0 : fallAge < 680 ? 1 : fallAge < 1080 ? 2 : 3;
         const fallX = innerWidth * .68 + Math.sin(fallAge * .025) * (fallAge < 550 ? 8 : 0);
         const fallY = innerHeight * .82 + Math.min(16, fallAge * .016);
-        drawSprite(characterAssets.lastPlace, fallFrame, fallX, fallY, size * .82, { glow: "rgba(255,73,108,.25)" });
-        drawNameplate(last?.name || "", fallX, fallY - size * .7, "#ff6b87");
+        const fallenSize = size * .82;
+        drawSprite(characterAssets.lastPlace, fallFrame, fallX, fallY, fallenSize, { glow: "rgba(255,73,108,.25)" });
+        drawNameplate(last?.name || "", fallX, nameplateAbove(fallY, fallenSize), "#ff6b87");
         if (fallAge < 500) {
           context.fillStyle = `rgba(255,245,207,${.45 * (1 - fallAge / 500)})`;
           context.fillRect(0, 0, innerWidth, innerHeight);
