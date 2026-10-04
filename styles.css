@@ -127,8 +127,8 @@ button { color: inherit; }
 .empty-party small { color: #5e6b9a; font-size: 10px; }
 .participant-card { min-width: 0; display: grid; grid-template-columns: 39px 58px 1fr 34px; align-items: center; min-height: 72px; border-left: 4px solid var(--participant-accent, var(--blue)); background: #0b112f; box-shadow: inset 0 0 0 1px #263568; animation: cardIn .25s steps(4) both; }
 .participant-card__number { align-self: stretch; display: grid; place-items: center; color: var(--gold); background: #151e49; font-size: 11px; }
-.participant-card__avatar { width: 52px; aspect-ratio: 1; padding: 0; border: 2px solid var(--fighter-accent, var(--blue)); background-color: #111735; cursor: pointer; filter: drop-shadow(3px 4px 0 rgba(2,4,16,.55)); transition: transform .15s steps(2), filter .15s steps(2); }
-.participant-card__avatar:hover, .participant-card__avatar:focus-visible { transform: translateY(-2px) scale(1.06); filter: drop-shadow(3px 5px 0 rgba(2,4,16,.65)) brightness(1.12); outline: 2px solid var(--gold); outline-offset: 2px; }
+.participant-card__avatar { width: 52px; aspect-ratio: 1; padding: 0; border: 2px solid var(--fighter-accent, var(--blue)); background-color: #111735; cursor: pointer; filter: var(--zodiac-tone, none) drop-shadow(3px 4px 0 rgba(2,4,16,.55)); transition: transform .15s steps(2), filter .15s steps(2); }
+.participant-card__avatar:hover, .participant-card__avatar:focus-visible { transform: translateY(-2px) scale(1.06); filter: var(--zodiac-tone, none) drop-shadow(3px 5px 0 rgba(2,4,16,.65)) brightness(1.12); outline: 2px solid var(--gold); outline-offset: 2px; }
 .participant-card__copy { padding: 8px 11px; min-width: 0; }
 .participant-card__copy strong, .participant-card__copy span { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .participant-card__copy strong { font-size: 13px; }
@@ -237,7 +237,7 @@ button { color: inherit; }
 .result-banner { position: absolute; top: 26px; z-index: 3; padding: 11px 20px; color: #482b00; border: 4px solid #a8671a; background: var(--gold); box-shadow: 7px 7px 0 rgba(24,52,112,.5); font-size: 11px; letter-spacing: .14em; }
 .pixel-cloud { position: absolute; z-index: 1; width: 170px; height: 42px; background: white; box-shadow: 24px -22px white, 61px -37px white, 104px -21px white, 21px 17px rgba(186,232,255,.8); opacity: .9; }.cloud-1 { left: 4%; top: 22%; }.cloud-2 { right: 7%; top: 34%; transform: scale(.72); }.cloud-3 { left: 18%; bottom: 13%; transform: scale(.55); opacity: .65; }
 .cloud-platform { position: relative; z-index: 3; width: 280px; height: 45px; margin-top: -12px; border-bottom: 8px solid #b8e7ff; background: white; box-shadow: 40px 17px white, -28px 13px white, 0 25px #abdff5; }
-.trainer-sprite { position: relative; z-index: 4; width: clamp(250px, 32vw, 360px); aspect-ratio: 1; margin: -42px 0 -54px; background-image: url("assets/characters/zodiac-character-concept-v1.png"); background-repeat: no-repeat; background-size: 400% 300%; background-position: var(--zodiac-x, 0%) var(--zodiac-y, 0%); image-rendering: pixelated; filter: drop-shadow(7px 10px 0 rgba(20, 52, 106, .35)); transform-origin: 50% 92%; }
+.trainer-sprite { position: relative; z-index: 4; width: clamp(250px, 32vw, 360px); aspect-ratio: 1; margin: -42px 0 -54px; background-image: url("assets/characters/zodiac-character-concept-v1.png"); background-repeat: no-repeat; background-size: 400% 300%; background-position: var(--zodiac-x, 0%) var(--zodiac-y, 0%); image-rendering: pixelated; filter: var(--zodiac-tone, none) drop-shadow(7px 10px 0 rgba(20, 52, 106, .35)); transform-origin: 50% 92%; }
 .trainer-sprite[data-state] { background-position: var(--zodiac-x, 0%) var(--zodiac-y, 0%); }
 .result-view.playing .trainer-sprite { animation: heroRise 1s 1.25s steps(8) both; }
 .crown { position: absolute; z-index: 4; left: calc(50% - 31px); top: 108px; width: 62px; height: 35px; border-bottom: 12px solid #ffcf31; animation: crownFloat 1.3s steps(4) infinite; }.crown i { position: absolute; bottom: 8px; width: 19px; height: 28px; background: #ffcf31; transform: rotate(45deg); }.crown i:nth-child(1) { left: 3px; }.crown i:nth-child(2) { left: 22px; height: 38px; }.crown i:nth-child(3) { right: 3px; }
@@ -323,13 +323,13 @@ body.result-mode { overflow: hidden; }
 .ending-winner-copy > span { color: var(--gold); font-size: 10px; letter-spacing: .18em; }.ending-winner-copy > p { margin: 16px 0 2px; color: #f0d898; font-size: 14px; }.ending-winner-copy h1 { max-width: 48vw; margin: 0; overflow: hidden; color: white; font-size: clamp(43px, 7vw, 94px); line-height: 1; white-space: nowrap; text-overflow: ellipsis; }
 .ending-meta { display: grid; grid-template-columns: auto minmax(0,1fr); gap: 5px 10px; max-width: 430px; margin-top: 22px; font-size: 9px; }.ending-meta b { color: var(--gold); letter-spacing: .12em; }.ending-meta strong { overflow: hidden; color: #d5defd; white-space: nowrap; text-overflow: ellipsis; }
 .champion-visual { position: absolute; z-index: 3; inset: 0; display: grid; place-items: end center; min-height: 0; pointer-events: none; }
-.champion-visual .trainer-sprite { position: relative; z-index: 5; width: min(46vw, 58vh, 500px); margin: 0 0 6vh; filter: drop-shadow(10px 14px 0 rgba(15,18,48,.48)) drop-shadow(0 0 24px rgba(255,216,77,.32)); }
+.champion-visual .trainer-sprite { position: relative; z-index: 5; width: min(46vw, 58vh, 500px); margin: 0 0 6vh; filter: var(--zodiac-tone, none) drop-shadow(10px 14px 0 rgba(15,18,48,.48)) drop-shadow(0 0 24px rgba(255,216,77,.32)); }
 .result-view.playing .champion-visual .trainer-sprite { animation: heroRise .75s 2.85s steps(8) both; }
 .pixel-crown { position: absolute; z-index: 6; top: 8%; left: 50%; color: var(--gold); font-size: clamp(30px, 4vw, 55px); text-shadow: 0 0 18px #fff0a2; animation: crownFloat 1.2s steps(4) infinite; }
 .ending-footer { position: relative; z-index: 4; display: grid; grid-template-columns: 1fr auto; align-items: center; gap: 12px; padding: 8px 22px; border-top: 3px solid var(--gold); background: rgba(7,10,29,.94); }
 .last-place-stage { position: absolute; z-index: 8; right: 2%; bottom: -2%; display: flex; flex-direction: column; align-items: center; filter: drop-shadow(0 10px 10px rgba(2,4,16,.55)); }
 .result-view.playing .last-place-stage { animation: lastPlaceEnter .75s 3.15s steps(7) both; }
-.last-place-character { width: 108px; aspect-ratio: 1; background-image: url("assets/characters/zodiac-character-concept-v1.png"); background-repeat: no-repeat; background-size: 400% 300%; background-position: var(--zodiac-x, 0%) var(--zodiac-y, 0%); filter: grayscale(.08) saturate(.82) drop-shadow(5px 7px 0 rgba(2,4,16,.48)); transform-origin: 50% 92%; animation: lastPlaceBow 2.2s steps(4) infinite; image-rendering: pixelated; }
+.last-place-character { width: 108px; aspect-ratio: 1; background-image: url("assets/characters/zodiac-character-concept-v1.png"); background-repeat: no-repeat; background-size: 400% 300%; background-position: var(--zodiac-x, 0%) var(--zodiac-y, 0%); filter: var(--zodiac-tone, none) grayscale(.08) saturate(.82) drop-shadow(5px 7px 0 rgba(2,4,16,.48)); transform-origin: 50% 92%; animation: lastPlaceBow 2.2s steps(4) infinite; image-rendering: pixelated; }
 .last-place-name { max-width: 150px; margin-bottom: -7px; padding: 5px 9px; overflow: hidden; color: #fff2f4; border: 2px solid var(--red); background: rgba(12,12,35,.9); box-shadow: 4px 4px 0 rgba(60,13,43,.75); font-size: 11px; line-height: 1.2; white-space: nowrap; text-overflow: ellipsis; }
 .ending-roster { min-width: 0; display: flex; gap: 6px; overflow: hidden; }.ending-roster .roster-player { flex: 1 1 90px; min-width: 75px; min-height: 46px; grid-template-columns: 18px 1fr auto; gap: 5px; padding: 5px 6px; background: rgba(19,25,62,.92); }.ending-roster .roster-player small { display: none; }.ending-roster .roster-player strong { overflow: hidden; font-size: 9px; white-space: nowrap; text-overflow: ellipsis; }.roster-more { display: grid; place-items: center; min-width: 42px; color: var(--gold); border: 1px solid #4d5a8d; background: #13193e; font-size: 9px; }.ending-footer > small { color: #606c99; font-size: 7px; letter-spacing: .12em; white-space: nowrap; }
 
@@ -457,7 +457,7 @@ body.result-mode { overflow: hidden; }
 .duel-players > .focus-player:first-child { left: 4%; top: 22px; bottom: auto; }
 .match-card--focus .combatant:last-child,
 .duel-players > .focus-player:last-child { right: 4%; top: auto; bottom: 19px; }
-.battle-trainer { position: relative; display: block; width: min(21vw, 178px); aspect-ratio: 1; margin: -22px auto -2px; background-image: url("assets/characters/zodiac-character-concept-v1.png"); background-repeat: no-repeat; background-size: 400% 300%; background-position: var(--zodiac-x, 0%) var(--zodiac-y, 0%); image-rendering: pixelated; filter: drop-shadow(7px 9px 0 rgba(5,6,20,.58)) drop-shadow(0 0 5px var(--fighter-accent, #48c7ff)); transform-origin: 50% 100%; animation: fighterReady 1.1s steps(4) infinite; }
+.battle-trainer { position: relative; display: block; width: min(21vw, 178px); aspect-ratio: 1; margin: -22px auto -2px; background-image: url("assets/characters/zodiac-character-concept-v1.png"); background-repeat: no-repeat; background-size: 400% 300%; background-position: var(--zodiac-x, 0%) var(--zodiac-y, 0%); image-rendering: pixelated; filter: var(--zodiac-tone, none) drop-shadow(7px 9px 0 rgba(5,6,20,.58)) drop-shadow(0 0 5px var(--fighter-accent, #48c7ff)); transform-origin: 50% 100%; animation: fighterReady 1.1s steps(4) infinite; }
 .battle-trainer--b { transform: scaleX(-1); animation-name: fighterReadyMirror; }
 .battle-trainer[data-state="victory"] { background-position: var(--zodiac-x, 0%) var(--zodiac-y, 0%); animation: winnerPulse .7s steps(4) infinite; }
 .battle-trainer--b[data-state="victory"] { animation-name: winnerPulseMirror; }
@@ -474,7 +474,7 @@ body.result-mode { overflow: hidden; }
 .combatant.selecting, .focus-player.selected { border-color: #ffd84d; animation: winnerRoute .82s steps(7) both; }
 .combatant.dropping, .focus-player.impact-hit { animation: defeatedRoute .82s steps(7) both; }
 .focus-player.crying { border-color: #ff6e8d; animation: loserRoute 1.05s steps(8) both; }
-.focus-player.crying .battle-trainer { filter: grayscale(.25) saturate(.65) drop-shadow(7px 9px 0 rgba(5,6,20,.58)); }
+.focus-player.crying .battle-trainer { filter: var(--zodiac-tone, none) grayscale(.25) saturate(.65) drop-shadow(7px 9px 0 rgba(5,6,20,.58)); }
 
 .bracket-scroll { min-height: 0; overflow-x: hidden; padding: 14px; }
 .bracket-map { display: flex; gap: 24px; margin: 18px 8px 5px; padding: 15px; overflow-x: auto; border: 1px solid #334579; background: rgba(7,11,32,.9); scrollbar-color: #58689f #0a0e29; }
@@ -507,7 +507,7 @@ body.result-mode { overflow: hidden; }
 .champion-visual { position: absolute; inset: 0; display: block; pointer-events: none; }
 .champion-visual::before { content: ""; position: absolute; z-index: 1; inset: 0; background: radial-gradient(ellipse 30% 72% at 50% 12%, rgba(255,249,211,.28) 0, rgba(255,228,133,.14) 38%, rgba(255,216,77,.055) 58%, transparent 76%); mix-blend-mode: screen; opacity: .82; animation: championSpotlightGlow 3.2s ease-in-out infinite; pointer-events: none; }
 .champion-visual::after { content: ""; position: absolute; z-index: 2; left: 50%; bottom: calc(34% - 10px); width: min(34vw, 350px); height: clamp(38px, 6vh, 64px); transform: translateX(-50%); border-radius: 50%; background: radial-gradient(ellipse, rgba(255,247,191,.42) 0, rgba(255,218,91,.18) 42%, transparent 74%); filter: blur(7px); opacity: .82; animation: championFootlightGlow 3.2s ease-in-out infinite; pointer-events: none; }
-.champion-visual .trainer-sprite { position: absolute; z-index: 5; left: 50%; bottom: 34%; width: min(25vw, 34vh, 280px); margin: 0; transform: translateX(-50%); filter: drop-shadow(8px 10px 0 rgba(15,18,48,.42)) drop-shadow(0 0 18px rgba(255,216,77,.24)); }
+.champion-visual .trainer-sprite { position: absolute; z-index: 5; left: 50%; bottom: 34%; width: min(25vw, 34vh, 280px); margin: 0; transform: translateX(-50%); filter: var(--zodiac-tone, none) drop-shadow(8px 10px 0 rgba(15,18,48,.42)) drop-shadow(0 0 18px rgba(255,216,77,.24)); }
 .result-view.playing .champion-visual .trainer-sprite { animation: finalHeroRise .8s 2.85s steps(8) both; }
 .result-view.playing .champion-visual .trainer-sprite[data-state="victory"] { animation: zodiacChampionVictory .86s steps(5) infinite; }
 .result-view.playing .champion-visual .trainer-sprite[data-state="triumph"] { animation: zodiacChampionTriumph 1s steps(6) infinite; }
@@ -557,14 +557,14 @@ body.result-mode { overflow: hidden; }
 @keyframes duelSceneIn { from { opacity: 0; filter: brightness(.35); transform: scale(.96); } to { opacity: 1; filter: brightness(1); transform: scale(1); } }
 @keyframes fighterReady { 50% { transform: translateY(-5px); } }
 @keyframes fighterReadyMirror { 0%,100% { transform: scaleX(-1) translateY(0); } 50% { transform: scaleX(-1) translateY(-5px); } }
-@keyframes winnerPulse { 50% { transform: translateY(-7px) scale(1.04); filter: drop-shadow(0 0 18px #ffd84d); } }
-@keyframes winnerPulseMirror { 0%,100% { transform: scaleX(-1) translateY(0) scale(1); } 50% { transform: scaleX(-1) translateY(-7px) scale(1.04); filter: drop-shadow(0 0 18px #ffd84d); } }
+@keyframes winnerPulse { 0%,100% { filter: var(--zodiac-tone, none) drop-shadow(7px 9px 0 rgba(5,6,20,.58)); } 50% { transform: translateY(-7px) scale(1.04); filter: var(--zodiac-tone, none) drop-shadow(0 0 18px #ffd84d); } }
+@keyframes winnerPulseMirror { 0%,100% { transform: scaleX(-1) translateY(0) scale(1); filter: var(--zodiac-tone, none) drop-shadow(7px 9px 0 rgba(5,6,20,.58)); } 50% { transform: scaleX(-1) translateY(-7px) scale(1.04); filter: var(--zodiac-tone, none) drop-shadow(0 0 18px #ffd84d); } }
 @keyframes winnerRoute { 22% { filter: brightness(1.8); box-shadow: 0 0 34px #ffd84d; } 62% { transform: translate(-9px,-8px) scale(1.04); } 100% { transform: translate(56px,-18px); opacity: .15; } }
 @keyframes defeatedRoute { 24% { transform: translate(7px,3px); filter: saturate(.6); } 50% { transform: translate(-6px,9px); } 100% { transform: translate(34px,34px) scale(.86); opacity: .18; } }
 @keyframes loserRoute { 15%,45% { transform: translateX(-6px) rotate(-1deg); } 30%,60% { transform: translateX(6px) rotate(1deg); } 100% { transform: translate(42px,38px) scale(.82); opacity: .14; } }
 @keyframes finalHeroRise { from { opacity: 0; transform: translate(-50%, 130px); } to { opacity: 1; transform: translate(-50%, 0); } }
-@keyframes zodiacChampionVictory { 0%,100% { transform: translateX(-50%) translateY(0) scale(1); } 45% { transform: translateX(-50%) translateY(-13px) scale(1.055); filter: drop-shadow(8px 10px 0 rgba(15,18,48,.42)) drop-shadow(0 0 28px rgba(255,216,77,.72)); } }
-@keyframes zodiacChampionTriumph { 0%,100% { transform: translateX(-50%) rotate(-1.5deg) scale(1.02); } 50% { transform: translateX(-50%) translateY(-10px) rotate(1.5deg) scale(1.08); filter: drop-shadow(8px 10px 0 rgba(15,18,48,.42)) drop-shadow(0 0 34px rgba(255,238,142,.85)); } }
+@keyframes zodiacChampionVictory { 0%,100% { transform: translateX(-50%) translateY(0) scale(1); filter: var(--zodiac-tone, none) drop-shadow(8px 10px 0 rgba(15,18,48,.42)) drop-shadow(0 0 18px rgba(255,216,77,.24)); } 45% { transform: translateX(-50%) translateY(-13px) scale(1.055); filter: var(--zodiac-tone, none) drop-shadow(8px 10px 0 rgba(15,18,48,.42)) drop-shadow(0 0 28px rgba(255,216,77,.72)); } }
+@keyframes zodiacChampionTriumph { 0%,100% { transform: translateX(-50%) rotate(-1.5deg) scale(1.02); filter: var(--zodiac-tone, none) drop-shadow(8px 10px 0 rgba(15,18,48,.42)) drop-shadow(0 0 20px rgba(255,216,77,.36)); } 50% { transform: translateX(-50%) translateY(-10px) rotate(1.5deg) scale(1.08); filter: var(--zodiac-tone, none) drop-shadow(8px 10px 0 rgba(15,18,48,.42)) drop-shadow(0 0 34px rgba(255,238,142,.85)); } }
 @keyframes championSpotlightGlow { 0%,100% { opacity: .72; } 50% { opacity: .92; } }
 @keyframes championFootlightGlow { 0%,100% { opacity: .7; transform: translateX(-50%) scaleX(.94); } 50% { opacity: .9; transform: translateX(-50%) scaleX(1.04); } }
 @keyframes creditEntry { to { opacity: 1; transform: translateY(0); } }

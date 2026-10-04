@@ -61,6 +61,20 @@
   ]);
   const ZODIAC_COLUMNS = 4;
   const ZODIAC_ROWS = 3;
+  const ZODIAC_VARIANTS = Object.freeze([
+    { hue: 0, saturation: 1, brightness: 1, accent: null },
+    { hue: 30, saturation: 1.18, brightness: 1.04, accent: "#ff6b6b" },
+    { hue: 60, saturation: 1.12, brightness: 1.02, accent: "#f4c84a" },
+    { hue: 90, saturation: 1.16, brightness: 1.03, accent: "#74d95d" },
+    { hue: 120, saturation: 1.12, brightness: 1.02, accent: "#42d29b" },
+    { hue: 150, saturation: 1.14, brightness: 1.05, accent: "#49d3d8" },
+    { hue: 180, saturation: 1.08, brightness: 1.04, accent: "#52a9f5" },
+    { hue: 210, saturation: 1.15, brightness: 1.03, accent: "#687cf1" },
+    { hue: 240, saturation: 1.12, brightness: 1.05, accent: "#9b70ee" },
+    { hue: 270, saturation: 1.18, brightness: 1.04, accent: "#d76de5" },
+    { hue: 300, saturation: 1.15, brightness: 1.03, accent: "#f06eb2" },
+    { hue: 330, saturation: 1.18, brightness: 1.02, accent: "#f16f82" }
+  ]);
 
   let draftParticipants = [];
   let tournamentState = null;
@@ -147,11 +161,51 @@
     return { ...ZODIAC_CHARACTERS[index], index, column: index % ZODIAC_COLUMNS, row: Math.floor(index / ZODIAC_COLUMNS) };
   }
 
+  function normalizeColorVariant(value, fallback = 0) {
+    const index = Number(value);
+    return Number.isInteger(index) && index >= 0 && index < ZODIAC_VARIANTS.length
+      ? index
+      : Math.abs(Number(fallback) || 0) % ZODIAC_VARIANTS.length;
+  }
+
+  function participantColorVariant(participant, fallback = 0) {
+    const index = normalizeColorVariant(participant?.colorVariant, fallback);
+    return { ...ZODIAC_VARIANTS[index], index };
+  }
+
+  function nextAvailableColorVariant(participants, characterIndex, excludedId = "") {
+    const used = new Set(participants
+      .filter((participant) => participant.id !== excludedId && participantCharacterIndex(participant) === characterIndex)
+      .map((participant) => normalizeColorVariant(participant.colorVariant)));
+    for (let index = 0; index < ZODIAC_VARIANTS.length; index += 1) {
+      if (!used.has(index)) return index;
+    }
+    return used.size % ZODIAC_VARIANTS.length;
+  }
+
+  function normalizeParticipantRoster(participants) {
+    const usedByCharacter = new Map();
+    return participants.map((participant, index) => {
+      const character = participantCharacterIndex(participant, index);
+      const used = usedByCharacter.get(character) || new Set();
+      let colorVariant = normalizeColorVariant(participant.colorVariant);
+      if (used.has(colorVariant)) {
+        colorVariant = ZODIAC_VARIANTS.findIndex((_, variantIndex) => !used.has(variantIndex));
+        if (colorVariant < 0) colorVariant = used.size % ZODIAC_VARIANTS.length;
+      }
+      used.add(colorVariant);
+      usedByCharacter.set(character, used);
+      return { ...participant, character, colorVariant };
+    });
+  }
+
   function zodiacStyle(participant, fallback) {
     const character = participantCharacter(participant, fallback);
+    const variant = participantColorVariant(participant);
     const x = character.column * 100 / (ZODIAC_COLUMNS - 1);
     const y = character.row * 100 / (ZODIAC_ROWS - 1);
-    return `--zodiac-x:${x}%;--zodiac-y:${y}%;--fighter-accent:${character.accent}`;
+    const accent = variant.accent || character.accent;
+    return `--zodiac-x:${x}%;--zodiac-y:${y}%;--zodiac-hue:${variant.hue}deg;--zodiac-saturation:${variant.saturation};--zodiac-brightness:${variant.brightness};--zodiac-tone:hue-rotate(${variant.hue}deg) saturate(${variant.saturation}) brightness(${variant.brightness});--fighter-accent:${accent}`;
   }
 
   function applyZodiacCharacter(element, participant, roleLabel) {
@@ -159,7 +213,9 @@
     element.classList.add("zodiac-sprite");
     element.style.cssText = zodiacStyle(participant);
     element.dataset.character = character.key;
-    element.setAttribute("aria-label", `${character.label} 캐릭터 · ${roleLabel}`);
+    const variant = participantColorVariant(participant);
+    element.dataset.colorVariant = String(variant.index);
+    element.setAttribute("aria-label", `${character.label} 캐릭터 · 컬러 ${variant.index + 1} · ${roleLabel}`);
   }
 
   function nextAvailableCharacter(participants, current = -1, excludedId = "") {
@@ -175,7 +231,8 @@
 
   function participantSprite(participant, slot = "a", state = "standing") {
     const character = participantCharacter(participant);
-    return `<span class="battle-trainer zodiac-sprite battle-trainer--${slot}" data-state="${state}" data-character="${character.key}" style="${zodiacStyle(participant)}" aria-hidden="true"></span>`;
+    const variant = participantColorVariant(participant);
+    return `<span class="battle-trainer zodiac-sprite battle-trainer--${slot}" data-state="${state}" data-character="${character.key}" data-color-variant="${variant.index}" style="${zodiacStyle(participant)}" aria-hidden="true"></span>`;
   }
 
   function encodeState(value) {
@@ -315,13 +372,15 @@
 
     refs.participantList.innerHTML = draftParticipants.map((participant, index) => {
       const character = participantCharacter(participant, index);
+      const variant = participantColorVariant(participant);
+      const accent = variant.accent || character.accent;
       return `
-        <article class="participant-card" style="--participant-accent:${character.accent}">
+        <article class="participant-card" style="--participant-accent:${accent}">
           <span class="participant-card__number">${String(index + 1).padStart(2, "0")}</span>
-          <button class="participant-card__avatar zodiac-sprite" type="button" data-cycle-character="${participant.id}" data-character="${character.key}" style="${zodiacStyle(participant, index)}" aria-label="${escapeName(participant.name)} 캐릭터 변경 · 현재 ${character.label}" title="캐릭터 변경: ${character.label}"></button>
+          <button class="participant-card__avatar zodiac-sprite" type="button" data-cycle-character="${participant.id}" data-character="${character.key}" data-color-variant="${variant.index}" style="${zodiacStyle(participant, index)}" aria-label="${escapeName(participant.name)} 캐릭터 변경 · 현재 ${character.label} 컬러 ${variant.index + 1}" title="캐릭터 변경: ${character.label} · 컬러 ${variant.index + 1}"></button>
           <div class="participant-card__copy">
             <strong>${escapeName(participant.name)}</strong>
-            <span>${escapeHtml(participant.team || "무소속 플레이어")} · ${character.label}</span>
+            <span>${escapeHtml(participant.team || "무소속 플레이어")} · ${character.label}${variant.index ? ` · 컬러 ${variant.index + 1}` : ""}</span>
           </div>
           <button class="participant-card__remove" type="button" data-remove-id="${participant.id}" aria-label="${escapeName(participant.name)} 삭제">×</button>
         </article>`;
@@ -337,11 +396,13 @@
       setTimeout(() => refs.participantName.classList.remove("invalid"), 500);
       return;
     }
+    const character = nextAvailableCharacter(draftParticipants);
     draftParticipants.push({
       id: uid(),
       name,
       team: refs.participantTeam.value.trim(),
-      character: nextAvailableCharacter(draftParticipants)
+      character,
+      colorVariant: nextAvailableColorVariant(draftParticipants, character)
     });
     refs.participantForm.reset();
     renderDraftParticipants();
@@ -354,6 +415,7 @@
       const participant = draftParticipants.find((item) => item.id === characterButton.dataset.cycleCharacter);
       if (!participant) return;
       participant.character = nextAvailableCharacter(draftParticipants, participantCharacterIndex(participant), participant.id);
+      participant.colorVariant = nextAvailableColorVariant(draftParticipants, participant.character, participant.id);
       renderDraftParticipants();
       return;
     }
@@ -411,7 +473,7 @@
         prize: refs.tournamentPrize.value.trim(),
         memo: refs.tournamentMemo.value.trim()
       },
-      participants: draftParticipants.map((participant) => ({ ...participant })),
+      participants: normalizeParticipantRoster(draftParticipants.map((participant) => ({ ...participant }))),
       drawOrder,
       initialMatches: makeInitialMatches(drawOrder),
       bracketChoices: { winner: {}, loser: {} },
@@ -462,14 +524,15 @@
 
   function sanitizeLoadedState(candidate) {
     if (!candidate || typeof candidate !== "object" || !candidate.tournament || !Array.isArray(candidate.participants)) throw new Error("invalid state");
-    const participants = candidate.participants
+    const participants = normalizeParticipantRoster(candidate.participants
       .filter((participant) => participant && typeof participant.id === "string" && typeof participant.name === "string")
       .map((participant, index) => ({
         id: participant.id,
         name: participant.name.slice(0, 30),
         team: String(participant.team || "").slice(0, 40),
-        character: normalizeCharacterIndex(participant.character, index)
-      }));
+        character: normalizeCharacterIndex(participant.character, index),
+        colorVariant: normalizeColorVariant(participant.colorVariant)
+      })));
     if (participants.length < 2) throw new Error("not enough participants");
     const ids = new Set(participants.map((participant) => participant.id));
     const drawOrder = Array.isArray(candidate.drawOrder) ? candidate.drawOrder.filter((id) => ids.has(id)) : [];
@@ -1012,6 +1075,7 @@
       const sheet = characterAssets.zodiac;
       if (!sheet.complete || !sheet.naturalWidth) return;
       const character = participantCharacter(participant);
+      const variant = participantColorVariant(participant);
       const cellWidth = sheet.naturalWidth / ZODIAC_COLUMNS;
       const cellHeight = sheet.naturalHeight / ZODIAC_ROWS;
       const sourceX = character.column * cellWidth;
@@ -1023,6 +1087,7 @@
       context.rotate((options.rotate || 0) * Math.PI / 180);
       context.scale(scale * (options.scaleX ?? 1), scale * (options.scaleY ?? 1));
       context.globalAlpha = options.alpha ?? 1;
+      context.filter = `hue-rotate(${variant.hue}deg) saturate(${variant.saturation}) brightness(${variant.brightness})`;
       context.shadowColor = options.glow || "rgba(7,9,28,.72)";
       context.shadowBlur = options.glow ? 24 : 10;
       context.drawImage(sheet, sourceX, sourceY, cellWidth, cellHeight, -size / 2, -size, size, size);
@@ -1344,10 +1409,11 @@
   function renderSharePage(payload) {
     payload = {
       ...payload,
-      participants: payload.participants.map((participant, index) => ({
+      participants: normalizeParticipantRoster(payload.participants.map((participant, index) => ({
         ...participant,
-        character: normalizeCharacterIndex(participant.character, index)
-      }))
+        character: normalizeCharacterIndex(participant.character, index),
+        colorVariant: normalizeColorVariant(participant.colorVariant)
+      })))
     };
     showOnly("result");
     const byId = new Map(payload.participants.map((participant) => [participant.id, participant]));
