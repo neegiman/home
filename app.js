@@ -904,16 +904,36 @@
       return { ...state, local: state.duration, progress: 1, start: duration - state.duration };
     }
 
-    function drawCover(image) {
+    function arenaLayout(image = characterAssets.championArena) {
+      const sourceWidth = image.naturalWidth || 1536;
+      const sourceHeight = image.naturalHeight || 1024;
+      const scale = Math.max(innerWidth / sourceWidth, innerHeight / sourceHeight);
+      const width = sourceWidth * scale;
+      const height = sourceHeight * scale;
+      return {
+        left: (innerWidth - width) / 2,
+        top: (innerHeight - height) / 2,
+        width,
+        height
+      };
+    }
+
+    function arenaPoint(xRatio, yRatio) {
+      const arena = arenaLayout();
+      return {
+        x: arena.left + arena.width * xRatio,
+        y: arena.top + arena.height * yRatio
+      };
+    }
+
+    function drawArena(image) {
       if (!image.complete || !image.naturalWidth) {
         context.fillStyle = "#111332";
         context.fillRect(0, 0, innerWidth, innerHeight);
         return;
       }
-      const scale = Math.max(innerWidth / image.naturalWidth, innerHeight / image.naturalHeight) * 1.14;
-      const width = image.naturalWidth * scale;
-      const height = image.naturalHeight * scale;
-      context.drawImage(image, (innerWidth - width) / 2, (innerHeight - height) / 2, width, height);
+      const arena = arenaLayout(image);
+      context.drawImage(image, arena.left, arena.top, arena.width, arena.height);
     }
 
     function drawSprite(sheet, frame, x, feetY, size, options = {}) {
@@ -937,22 +957,24 @@
 
     function stairPosition(progress, lane, size) {
       const steps = 8;
+      const stairLevels = [.835, .806, .778, .75, .723, .697, .674, .652, .631];
       const clamped = clamp(progress);
       const scaled = Math.min(steps - .001, clamped * steps);
       const stepIndex = Math.floor(scaled);
       const local = scaled - stepIndex;
-      const startX = innerWidth * (lane === "winner" ? .38 : .57);
-      const finishX = innerWidth * (lane === "winner" ? .50 : .60);
-      const startY = innerHeight * .92;
-      const finishY = innerHeight * .61;
-      const stepWidth = (finishX - startX) / steps;
-      const stepHeight = (startY - finishY) / steps;
+      const startX = lane === "winner" ? .36 : .64;
+      const finishX = lane === "winner" ? .50 : .55;
+      const currentX = mix(startX, finishX, stepIndex / steps);
+      const nextX = mix(startX, finishX, (stepIndex + 1) / steps);
+      const current = arenaPoint(currentX, stairLevels[stepIndex]);
+      const next = arenaPoint(nextX, stairLevels[stepIndex + 1]);
       const horizontal = easeOut(clamp(local / .6));
       const rise = local < .42 ? 0 : ease((local - .42) / .58);
       const lift = Math.sin(Math.PI * local) * Math.min(8, size * .035);
+      const edgePadding = Math.min(innerWidth * .22, size * .56 + 12);
       return {
-        x: startX + stepIndex * stepWidth + stepWidth * horizontal,
-        y: startY - stepIndex * stepHeight - stepHeight * rise - lift,
+        x: clamp(mix(current.x, next.x, horizontal), edgePadding, innerWidth - edgePadding),
+        y: mix(current.y, next.y, rise) - lift,
         stepIndex,
         local
       };
@@ -990,15 +1012,16 @@
       const label = honorName(name);
       context.font = `900 ${Math.max(15, Math.min(22, innerWidth * .026))}px Pretendard, sans-serif`;
       const width = Math.min(250, Math.max(122, context.measureText(label).width + 52));
-      context.fillStyle = "rgba(8,10,29,.94)";
-      context.fillRect(Math.round(x - width / 2), Math.round(y - 23), Math.round(width), 46);
-      context.strokeStyle = tone;
-      context.lineWidth = 3;
-      context.strokeRect(Math.round(x - width / 2), Math.round(y - 23), Math.round(width), 46);
-      context.fillStyle = tone;
+      context.save();
       context.textAlign = "center";
       context.textBaseline = "middle";
+      context.lineJoin = "round";
+      context.lineWidth = 7;
+      context.strokeStyle = "rgba(6,8,25,.96)";
+      context.strokeText(label, x, y + 1, width - 18);
+      context.fillStyle = tone;
       context.fillText(label, x, y + 1, width - 18);
+      context.restore();
     }
 
     function nameplateAbove(feetY, spriteSize) {
@@ -1035,7 +1058,6 @@
       let winnerFrame = 0;
       let loserFrame = 0;
       let fallPosition = null;
-      let winnerGlow = "rgba(72,199,255,.35)";
 
       if (state.name === "WALK_TOGETHER") {
         winnerProgress = state.progress * .56;
@@ -1062,47 +1084,50 @@
         loserProgress = .52;
         winnerFrame = state.progress < .35 ? 9 : 10;
         loserFrame = 11;
-        winnerGlow = "#ffd84d";
       } else if (["LOOK_DOWN", "FINAL_WIDE_SHOT"].includes(state.name)) {
         winnerProgress = 1;
         loserProgress = .52;
         winnerFrame = 11;
         loserFrame = 11;
-        winnerGlow = "#ffd84d";
       }
 
       const winnerPos = stairPosition(winnerProgress, "winner", size);
       let loserPos = stairPosition(loserProgress, "loser", lastSize);
       const stumbleOrigin = stairPosition(.52, "loser", lastSize);
+      const arenaFallTarget = arenaPoint(.65, .835);
+      const fallTarget = {
+        x: Math.min(innerWidth * .78, Math.max(innerWidth * .62, arenaFallTarget.x)),
+        y: arenaFallTarget.y
+      };
       if (state.name === "LOSER_STUMBLE") {
         loserPos = { x: stumbleOrigin.x + Math.sin(state.local * .065) * (2 + state.progress * 5), y: stumbleOrigin.y + state.progress * 3 };
       } else if (state.name === "LOSER_FALL") {
         const move = ease(state.progress);
         const bounce = state.progress > .72 ? Math.sin((state.progress - .72) / .28 * Math.PI) * 10 : 0;
         loserPos = {
-          x: mix(stumbleOrigin.x, innerWidth * .69, move),
-          y: mix(stumbleOrigin.y, innerHeight * .85, move) - bounce
+          x: mix(stumbleOrigin.x, fallTarget.x, move),
+          y: mix(stumbleOrigin.y, fallTarget.y, move) - bounce
         };
         fallPosition = loserPos;
       } else if (!["ENTER", "WALK_TOGETHER", "LOSER_STUMBLE"].includes(state.name)) {
-        loserPos = { x: innerWidth * .69, y: innerHeight * .85 };
+        loserPos = fallTarget;
         fallPosition = loserPos;
       }
 
-      let camera = { x: 0, y: 0, zoom: .94, shakeX: 0, shakeY: 0 };
-      if (state.name === "ENTER") camera.zoom = mix(.88, .96, ease(state.progress));
-      if (state.name === "WALK_TOGETHER") camera = { ...camera, zoom: mix(.96, 1.06, state.progress), y: -innerHeight * .045 * state.progress };
-      if (state.name === "LOSER_STUMBLE") camera = { ...camera, x: innerWidth * .035, y: -innerHeight * .025, zoom: 1.07 };
+      let camera = { x: 0, y: 0, zoom: 1, shakeX: 0, shakeY: 0 };
+      if (state.name === "ENTER") camera.zoom = mix(.94, 1, ease(state.progress));
+      if (state.name === "WALK_TOGETHER") camera.zoom = mix(1, 1.035, state.progress);
+      if (state.name === "LOSER_STUMBLE") camera.zoom = 1.04;
       if (state.name === "LOSER_FALL") {
         const shakeLife = Math.max(0, 1 - Math.abs(state.local - 430) / 180);
-        camera = { ...camera, x: innerWidth * .06, y: innerHeight * .015, zoom: 1.045, shakeX: Math.sin(state.local * .13) * 3 * shakeLife, shakeY: Math.cos(state.local * .16) * 2 * shakeLife };
+        camera = { ...camera, zoom: 1.025, shakeX: Math.sin(state.local * .13) * 3 * shakeLife, shakeY: Math.cos(state.local * .16) * 2 * shakeLife };
       }
-      if (state.name === "WINNER_LOOK_BACK") camera = { ...camera, x: innerWidth * .025, y: -innerHeight * .015, zoom: 1.035 };
-      if (state.name === "WINNER_CLIMB") camera = { ...camera, x: mix(innerWidth * .02, 0, state.progress), y: mix(-innerHeight * .02, -innerHeight * .095, state.progress), zoom: mix(1.04, 1.1, state.progress) };
-      if (state.name === "WINNER_ARRIVE") camera = { ...camera, y: -innerHeight * .09, zoom: mix(1.1, 1.13, ease(state.progress)) };
-      if (state.name === "VICTORY") camera = { ...camera, y: -innerHeight * .085, zoom: mix(1.13, 1.17, ease(state.progress)) };
-      if (state.name === "LOOK_DOWN") camera = { ...camera, y: mix(-innerHeight * .085, -innerHeight * .04, state.progress), zoom: mix(1.15, 1.04, state.progress) };
-      if (state.name === "FINAL_WIDE_SHOT") camera = { ...camera, y: mix(-innerHeight * .04, 0, state.progress), zoom: mix(1.04, .88, ease(state.progress)) };
+      if (state.name === "WINNER_LOOK_BACK") camera.zoom = 1.03;
+      if (state.name === "WINNER_CLIMB") camera.zoom = mix(1.03, 1.06, state.progress);
+      if (state.name === "WINNER_ARRIVE") camera.zoom = mix(1.06, 1.075, ease(state.progress));
+      if (state.name === "VICTORY") camera.zoom = mix(1.075, 1.09, ease(state.progress));
+      if (state.name === "LOOK_DOWN") camera.zoom = mix(1.08, 1.04, state.progress);
+      if (state.name === "FINAL_WIDE_SHOT") camera.zoom = mix(1.04, 1, ease(state.progress));
 
       const captions = {
         ENTER: "최종 1위와 최하위의 운명이 결정되었습니다",
@@ -1122,14 +1147,14 @@
       context.translate(innerWidth / 2 + camera.shakeX, innerHeight / 2 + camera.shakeY);
       context.scale(camera.zoom, camera.zoom);
       context.translate(-innerWidth / 2 - camera.x, -innerHeight / 2 - camera.y);
-      drawCover(characterAssets.championArena);
+      drawArena(characterAssets.championArena);
       const shade = context.createLinearGradient(0, 0, 0, innerHeight);
       shade.addColorStop(0, "rgba(10,12,42,.12)");
       shade.addColorStop(1, "rgba(8,5,22,.42)");
       context.fillStyle = shade;
       context.fillRect(-innerWidth * .2, -innerHeight * .2, innerWidth * 1.4, innerHeight * 1.4);
 
-      drawSprite(characterAssets.trainerCutscene, winnerFrame, winnerPos.x, winnerPos.y, size, { glow: winnerGlow });
+      drawSprite(characterAssets.trainerCutscene, winnerFrame, winnerPos.x, winnerPos.y, size);
       drawNameplate(first?.name || "", winnerPos.x, nameplateAbove(winnerPos.y, size), "#ffd84d");
 
       drawSprite(characterAssets.loserCutscene, loserFrame, loserPos.x, loserPos.y, lastSize, { mirror: true, glow: "rgba(255,73,108,.25)" });
