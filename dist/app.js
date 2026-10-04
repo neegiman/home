@@ -59,6 +59,23 @@
     { key: "dog", label: "개", accent: "#3f74cf" },
     { key: "boar", label: "돼지", accent: "#d75a7b" }
   ]);
+  // The twelve source cells have different transparent padding and visible feet.
+  // These profiles keep every animal planted on the same stage line and give
+  // bulky/long silhouettes a safer fall and bow range.
+  const ZODIAC_MOTION_PROFILES = Object.freeze([
+    { scale: 1.14, center: 179 / 362, top: 72 / 362, bottom: 1, centerShift: .55, groundShift: 0, bowTilt: 38, bowSquash: .84, fallRotate: 58, fallSquash: .80 },
+    { scale: .97, center: 173.5 / 362, top: 10 / 362, bottom: 1, centerShift: 2.07, groundShift: 0, bowTilt: 28, bowSquash: .90, fallRotate: 50, fallSquash: .84 },
+    { scale: 1.04, center: 184 / 362, top: 40 / 362, bottom: 1, centerShift: -.83, groundShift: 0, bowTilt: 34, bowSquash: .87, fallRotate: 60, fallSquash: .80 },
+    { scale: .99, center: 188 / 362, top: 20 / 362, bottom: 1, centerShift: -1.93, groundShift: 0, bowTilt: 36, bowSquash: .85, fallRotate: 56, fallSquash: .80 },
+    { scale: .93, center: 190.5 / 362, top: 0, bottom: 1, centerShift: -2.62, groundShift: 0, bowTilt: 28, bowSquash: .90, fallRotate: 48, fallSquash: .85 },
+    { scale: .93, center: 180.5 / 362, top: 0, bottom: 1, centerShift: .14, groundShift: 0, bowTilt: 24, bowSquash: .82, fallRotate: 42, fallSquash: .76 },
+    { scale: .94, center: 175.5 / 362, top: 0, bottom: 1, centerShift: 1.52, groundShift: 0, bowTilt: 32, bowSquash: .87, fallRotate: 56, fallSquash: .81 },
+    { scale: .94, center: 191.5 / 362, top: 0, bottom: 357 / 362, centerShift: -2.90, groundShift: 1.38, bowTilt: 30, bowSquash: .90, fallRotate: 50, fallSquash: .84 },
+    { scale: .98, center: 166 / 362, top: 0, bottom: 345 / 362, centerShift: 4.14, groundShift: 4.70, bowTilt: 36, bowSquash: .86, fallRotate: 60, fallSquash: .79 },
+    { scale: .97, center: 183 / 362, top: 0, bottom: 349 / 362, centerShift: -.55, groundShift: 3.59, bowTilt: 32, bowSquash: .88, fallRotate: 56, fallSquash: .81 },
+    { scale: .98, center: 190 / 362, top: 0, bottom: 345 / 362, centerShift: -2.49, groundShift: 4.70, bowTilt: 30, bowSquash: .89, fallRotate: 50, fallSquash: .83 },
+    { scale: .99, center: 192.5 / 362, top: 3 / 362, bottom: 345 / 362, centerShift: -3.18, groundShift: 4.70, bowTilt: 28, bowSquash: .90, fallRotate: 52, fallSquash: .84 }
+  ]);
   const ZODIAC_COLUMNS = 4;
   const ZODIAC_ROWS = 3;
   const ZODIAC_VARIANTS = Object.freeze([
@@ -161,6 +178,10 @@
     return { ...ZODIAC_CHARACTERS[index], index, column: index % ZODIAC_COLUMNS, row: Math.floor(index / ZODIAC_COLUMNS) };
   }
 
+  function zodiacMotionProfile(participant, fallback) {
+    return ZODIAC_MOTION_PROFILES[participantCharacterIndex(participant, fallback)] || ZODIAC_MOTION_PROFILES[0];
+  }
+
   function normalizeColorVariant(value, fallback = 0) {
     const index = Number(value);
     return Number.isInteger(index) && index >= 0 && index < ZODIAC_VARIANTS.length
@@ -202,10 +223,11 @@
   function zodiacStyle(participant, fallback) {
     const character = participantCharacter(participant, fallback);
     const variant = participantColorVariant(participant);
+    const motion = zodiacMotionProfile(participant, fallback);
     const x = character.column * 100 / (ZODIAC_COLUMNS - 1);
     const y = character.row * 100 / (ZODIAC_ROWS - 1);
     const accent = variant.accent || character.accent;
-    return `--zodiac-x:${x}%;--zodiac-y:${y}%;--zodiac-hue:${variant.hue}deg;--zodiac-saturation:${variant.saturation};--zodiac-brightness:${variant.brightness};--zodiac-tone:hue-rotate(${variant.hue}deg) saturate(${variant.saturation}) brightness(${variant.brightness});--fighter-accent:${accent}`;
+    return `--zodiac-x:${x}%;--zodiac-y:${y}%;--zodiac-hue:${variant.hue}deg;--zodiac-saturation:${variant.saturation};--zodiac-brightness:${variant.brightness};--zodiac-tone:hue-rotate(${variant.hue}deg) saturate(${variant.saturation}) brightness(${variant.brightness});--fighter-accent:${accent};--zodiac-motion-scale:${motion.scale};--zodiac-center-shift:${motion.centerShift}%;--zodiac-ground-shift:${motion.groundShift}%;--zodiac-bow-tilt:${motion.bowTilt}deg;--zodiac-bow-half:${motion.bowTilt / 2}deg;--zodiac-bow-squash:${motion.bowSquash}`;
   }
 
   function applyZodiacCharacter(element, participant, roleLabel) {
@@ -995,6 +1017,8 @@
     const context = canvas.getContext("2d");
     const first = participantById(firstId);
     const last = participantById(lastId);
+    const firstMotion = zodiacMotionProfile(first);
+    const lastMotion = zodiacMotionProfile(last);
     const reducedMotion = matchMedia("(prefers-reduced-motion: reduce)").matches;
     const sequence = [
       { name: "ENTER", duration: 500 },
@@ -1079,11 +1103,12 @@
       if (!sheet.complete || !sheet.naturalWidth) return;
       const character = participantCharacter(participant);
       const variant = participantColorVariant(participant);
+      const motion = zodiacMotionProfile(participant);
       const cellWidth = sheet.naturalWidth / ZODIAC_COLUMNS;
       const cellHeight = sheet.naturalHeight / ZODIAC_ROWS;
       const sourceX = character.column * cellWidth;
       const sourceY = character.row * cellHeight;
-      const scale = options.scale ?? 1;
+      const scale = (options.scale ?? 1) * motion.scale;
       context.save();
       context.translate(Math.round(x + (options.offsetX || 0)), Math.round(feetY + (options.offsetY || 0)));
       if (options.mirror) context.scale(-1, 1);
@@ -1093,7 +1118,7 @@
       context.filter = `hue-rotate(${variant.hue}deg) saturate(${variant.saturation}) brightness(${variant.brightness})`;
       context.shadowColor = options.glow || "rgba(7,9,28,.72)";
       context.shadowBlur = options.glow ? 24 : 10;
-      context.drawImage(sheet, sourceX, sourceY, cellWidth, cellHeight, -size / 2, -size, size, size);
+      context.drawImage(sheet, sourceX, sourceY, cellWidth, cellHeight, -size * motion.center, -size * motion.bottom, size, size);
       context.restore();
     }
 
@@ -1110,15 +1135,27 @@
       const nextX = mix(startX, finishX, (stepIndex + 1) / steps);
       const current = arenaPoint(currentX, stairLevels[stepIndex]);
       const next = arenaPoint(nextX, stairLevels[stepIndex + 1]);
-      const horizontal = easeOut(clamp(local / .6));
-      const rise = local < .42 ? 0 : ease((local - .42) / .58);
-      const lift = Math.sin(Math.PI * local) * Math.min(8, size * .035);
+      const horizontal = easeOut(clamp(local / .76));
+      const rise = ease(clamp((local - .18) / .68));
+      const liftPhase = clamp(local / .88);
+      const lift = Math.sin(Math.PI * liftPhase) * Math.min(5, size * .018);
       const edgePadding = Math.min(innerWidth * .22, size * .56 + 12);
       return {
         x: clamp(mix(current.x, next.x, horizontal), edgePadding, innerWidth - edgePadding),
         y: mix(current.y, next.y, rise) - lift,
         stepIndex,
         local
+      };
+    }
+
+    function stairWalkPose(position, mirror = false, direction = 1) {
+      const lift = Math.sin(Math.PI * position.local);
+      const settle = Math.sin(Math.PI * 2 * position.local);
+      return {
+        mirror,
+        rotate: settle * 1.25 * direction,
+        scaleX: 1 + lift * .012,
+        scaleY: 1 - lift * .022
       };
     }
 
@@ -1166,9 +1203,11 @@
       context.restore();
     }
 
-    function nameplateAbove(feetY, spriteSize) {
+    function nameplateAbove(participant, feetY, spriteSize, pose = {}) {
       const safeTop = innerWidth <= 700 ? 92 : 96;
-      return Math.max(safeTop, feetY - spriteSize - 30);
+      const motion = zodiacMotionProfile(participant);
+      const visibleHeight = spriteSize * (motion.bottom - motion.top) * motion.scale * (pose.scale ?? 1) * (pose.scaleY ?? 1);
+      return Math.max(safeTop, feetY - visibleHeight - 24);
     }
 
     function setCaption(value) {
@@ -1199,6 +1238,8 @@
       let loserProgress = 0;
       let winnerPose = {};
       let loserPose = { mirror: true };
+      let winnerWalking = false;
+      let loserWalking = false;
 
       if (state.name === "ENTER") {
         winnerPose = { offsetY: mix(28, 0, easeOut(state.progress)), scale: mix(.88, 1, easeOut(state.progress)), alpha: state.progress };
@@ -1206,42 +1247,44 @@
       } else if (state.name === "WALK_TOGETHER") {
         winnerProgress = state.progress * .56;
         loserProgress = clamp((state.progress - .04) / .96) * .52;
-        winnerPose = { offsetY: -Math.abs(Math.sin(state.local / 165 * Math.PI)) * 8, rotate: Math.sin(state.local / 165 * Math.PI) * 2.2 };
-        loserPose = { mirror: true, offsetY: -Math.abs(Math.sin((state.local + 90) / 175 * Math.PI)) * 7, rotate: Math.sin((state.local + 90) / 175 * Math.PI) * -2.2 };
+        winnerWalking = true;
+        loserWalking = true;
       } else if (["LOSER_STUMBLE", "LOSER_FALL", "WINNER_LOOK_BACK"].includes(state.name)) {
         winnerProgress = .56;
         loserProgress = .52;
-        winnerPose = state.name === "WINNER_LOOK_BACK" ? { mirror: true, rotate: 5 } : { offsetY: -Math.abs(Math.sin(elapsed / 270 * Math.PI)) * 3 };
+        winnerPose = state.name === "WINNER_LOOK_BACK" ? { mirror: true, rotate: 4 } : { rotate: Math.sin(elapsed / 280 * Math.PI) * .7 };
         loserPose = state.name === "LOSER_STUMBLE"
-          ? { mirror: true, rotate: Math.sin(state.local * .07) * (4 + state.progress * 8), offsetY: state.progress * 3 }
+          ? { mirror: true, rotate: Math.sin(state.local * .07) * (3 + state.progress * 6), scaleY: 1 - state.progress * .03 }
           : state.name === "LOSER_FALL"
-            ? { mirror: true, rotate: mix(0, 68, ease(state.progress)), scaleY: mix(1, .72, ease(state.progress)), offsetY: state.progress * 9 }
-            : { mirror: true, rotate: 62, scaleY: .72, offsetY: 8 };
+            ? { mirror: true, rotate: mix(0, lastMotion.fallRotate, ease(state.progress)), scaleY: mix(1, lastMotion.fallSquash, ease(state.progress)), offsetY: state.progress * 3 }
+            : { mirror: true, rotate: lastMotion.fallRotate, scaleY: lastMotion.fallSquash, offsetY: 3 };
       } else if (state.name === "WINNER_CLIMB") {
         winnerProgress = .56 + state.progress * .44;
         loserProgress = .52;
-        winnerPose = { offsetY: -Math.abs(Math.sin(state.local / 150 * Math.PI)) * 8, rotate: Math.sin(state.local / 150 * Math.PI) * 2 };
-        loserPose = { mirror: true, rotate: 62, scaleY: .72, offsetY: 8 + Math.abs(Math.sin(state.local / 260 * Math.PI)) * 3 };
+        winnerWalking = true;
+        loserPose = { mirror: true, rotate: lastMotion.fallRotate, scaleY: lastMotion.fallSquash + Math.abs(Math.sin(state.local / 320 * Math.PI)) * .012, offsetY: 3 };
       } else if (state.name === "WINNER_ARRIVE") {
         winnerProgress = 1;
         loserProgress = .52;
         winnerPose = { offsetY: -Math.sin(state.progress * Math.PI) * 9, scale: 1 + Math.sin(state.progress * Math.PI) * .04 };
-        loserPose = { mirror: true, rotate: 62, scaleY: .72, offsetY: 9 };
+        loserPose = { mirror: true, rotate: lastMotion.fallRotate, scaleY: lastMotion.fallSquash, offsetY: 3 };
       } else if (state.name === "VICTORY") {
         winnerProgress = 1;
         loserProgress = .52;
         winnerPose = { offsetY: -Math.abs(Math.sin(state.local / 260 * Math.PI)) * 13, scale: 1 + Math.abs(Math.sin(state.local / 260 * Math.PI)) * .07, glow: "rgba(255,216,77,.72)" };
-        loserPose = { mirror: true, rotate: 62, scaleY: .72, offsetY: 8 + Math.abs(Math.sin(state.local / 330 * Math.PI)) * 3 };
+        loserPose = { mirror: true, rotate: lastMotion.fallRotate, scaleY: lastMotion.fallSquash + Math.abs(Math.sin(state.local / 380 * Math.PI)) * .01, offsetY: 3 };
       } else if (["LOOK_DOWN", "FINAL_WIDE_SHOT"].includes(state.name)) {
         winnerProgress = 1;
         loserProgress = .52;
         winnerPose = { rotate: state.name === "LOOK_DOWN" ? 5 : 0, scale: state.name === "FINAL_WIDE_SHOT" ? 1.04 : 1, glow: "rgba(255,216,77,.6)" };
-        loserPose = { mirror: true, rotate: 62, scaleY: .72, offsetY: 9 + Math.abs(Math.sin(state.local / 360 * Math.PI)) * 2 };
+        loserPose = { mirror: true, rotate: lastMotion.fallRotate, scaleY: lastMotion.fallSquash + Math.abs(Math.sin(state.local / 420 * Math.PI)) * .008, offsetY: 3 };
       }
 
-      const winnerPos = stairPosition(winnerProgress, "winner", size);
-      let loserPos = stairPosition(loserProgress, "loser", lastSize);
-      const stumbleOrigin = stairPosition(.52, "loser", lastSize);
+      const winnerPos = stairPosition(winnerProgress, "winner", size * firstMotion.scale);
+      let loserPos = stairPosition(loserProgress, "loser", lastSize * lastMotion.scale);
+      const stumbleOrigin = stairPosition(.52, "loser", lastSize * lastMotion.scale);
+      if (winnerWalking) winnerPose = stairWalkPose(winnerPos, false, 1);
+      if (loserWalking) loserPose = stairWalkPose(loserPos, true, -1);
       const arenaFallTarget = arenaPoint(.65, .835);
       const fallTarget = {
         x: Math.min(innerWidth * .78, Math.max(innerWidth * .62, arenaFallTarget.x)),
@@ -1301,10 +1344,10 @@
       context.fillRect(-innerWidth * .2, -innerHeight * .2, innerWidth * 1.4, innerHeight * 1.4);
 
       drawZodiacSprite(first, winnerPos.x, winnerPos.y, size, winnerPose);
-      drawNameplate(first?.name || "", winnerPos.x, nameplateAbove(winnerPos.y, size), "#ffd84d");
+      drawNameplate(first?.name || "", winnerPos.x, nameplateAbove(first, winnerPos.y, size, winnerPose), "#ffd84d");
 
       drawZodiacSprite(last, loserPos.x, loserPos.y, lastSize, { ...loserPose, glow: "rgba(255,73,108,.28)" });
-      drawNameplate(last?.name || "", loserPos.x, nameplateAbove(loserPos.y, lastSize), "#ff6b87");
+      drawNameplate(last?.name || "", loserPos.x, nameplateAbove(last, loserPos.y, lastSize, loserPose), "#ff6b87");
 
       if (state.name === "LOSER_FALL") drawFallEffects(loserPos.x, loserPos.y, state.local);
       if (["VICTORY", "LOOK_DOWN", "FINAL_WIDE_SHOT"].includes(state.name)) drawVictoryEffects(winnerPos.x, winnerPos.y, size, state.local);
