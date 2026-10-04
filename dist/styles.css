@@ -504,6 +504,8 @@ body.result-mode { overflow: hidden; }
 .ending-main { position: relative; display: block; padding: 0; overflow: hidden; }
 .ending-winner-copy, .pixel-crown { display: none; }
 .champion-visual { position: absolute; inset: 0; display: block; pointer-events: none; }
+.champion-visual::before { content: ""; position: absolute; z-index: 1; inset: 0; background: radial-gradient(ellipse 30% 72% at 50% 12%, rgba(255,249,211,.28) 0, rgba(255,228,133,.14) 38%, rgba(255,216,77,.055) 58%, transparent 76%); mix-blend-mode: screen; opacity: .82; animation: championSpotlightGlow 3.2s ease-in-out infinite; pointer-events: none; }
+.champion-visual::after { content: ""; position: absolute; z-index: 2; left: 50%; bottom: calc(34% - 10px); width: min(34vw, 350px); height: clamp(38px, 6vh, 64px); transform: translateX(-50%); border-radius: 50%; background: radial-gradient(ellipse, rgba(255,247,191,.42) 0, rgba(255,218,91,.18) 42%, transparent 74%); filter: blur(7px); opacity: .82; animation: championFootlightGlow 3.2s ease-in-out infinite; pointer-events: none; }
 .champion-visual .trainer-sprite { position: absolute; z-index: 5; left: 50%; bottom: 34%; width: min(25vw, 34vh, 280px); margin: 0; transform: translateX(-50%); filter: drop-shadow(8px 10px 0 rgba(15,18,48,.42)) drop-shadow(0 0 18px rgba(255,216,77,.24)); }
 .result-view.playing .champion-visual .trainer-sprite { animation: finalHeroRise .8s 2.85s steps(8) both; }
 .result-view.reveal-now .champion-visual .trainer-sprite,
@@ -557,6 +559,8 @@ body.result-mode { overflow: hidden; }
 @keyframes defeatedRoute { 24% { transform: translate(7px,3px); filter: saturate(.6); } 50% { transform: translate(-6px,9px); } 100% { transform: translate(34px,34px) scale(.86); opacity: .18; } }
 @keyframes loserRoute { 15%,45% { transform: translateX(-6px) rotate(-1deg); } 30%,60% { transform: translateX(6px) rotate(1deg); } 100% { transform: translate(42px,38px) scale(.82); opacity: .14; } }
 @keyframes finalHeroRise { from { opacity: 0; transform: translate(-50%, 130px); } to { opacity: 1; transform: translate(-50%, 0); } }
+@keyframes championSpotlightGlow { 0%,100% { opacity: .72; } 50% { opacity: .92; } }
+@keyframes championFootlightGlow { 0%,100% { opacity: .7; transform: translateX(-50%) scaleX(.94); } 50% { opacity: .9; transform: translateX(-50%) scaleX(1.04); } }
 @keyframes creditEntry { to { opacity: 1; transform: translateY(0); } }
 
 @media (min-width: 701px) {
@@ -610,6 +614,8 @@ body.result-mode { overflow: hidden; }
   .champion-nameplate span { font-size: 6px; }
   .champion-nameplate strong { font-size: clamp(20px, 7vw, 35px); }
   .champion-nameplate small { font-size: 8px; }
+  .champion-visual::before { background: radial-gradient(ellipse 48% 68% at 50% 13%, rgba(255,249,211,.25) 0, rgba(255,228,133,.12) 40%, rgba(255,216,77,.045) 59%, transparent 77%); }
+  .champion-visual::after { bottom: calc(34% - 8px); width: min(62vw, 270px); height: 42px; }
   .champion-visual .trainer-sprite { bottom: 34%; width: min(54vw, 32vh, 215px); }
   .last-place-stage { right: 2%; bottom: 14%; }
   .last-place-character { width: min(46vw, 190px); }
