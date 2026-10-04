@@ -374,13 +374,14 @@
       const character = participantCharacter(participant, index);
       const variant = participantColorVariant(participant);
       const accent = variant.accent || character.accent;
+      const team = String(participant.team || "").trim();
       return `
-        <article class="participant-card" style="--participant-accent:${accent}">
+        <article class="participant-card${team ? "" : " no-team"}" style="--participant-accent:${accent}">
           <span class="participant-card__number">${String(index + 1).padStart(2, "0")}</span>
           <button class="participant-card__avatar zodiac-sprite" type="button" data-cycle-character="${participant.id}" data-character="${character.key}" data-color-variant="${variant.index}" style="${zodiacStyle(participant, index)}" aria-label="${escapeName(participant.name)} 캐릭터 변경 · 현재 ${character.label} 컬러 ${variant.index + 1}" title="캐릭터 변경: ${character.label} · 컬러 ${variant.index + 1}"></button>
           <div class="participant-card__copy">
             <strong>${escapeName(participant.name)}</strong>
-            <span>${escapeHtml(participant.team || "무소속 플레이어")} · ${character.label}${variant.index ? ` · 컬러 ${variant.index + 1}` : ""}</span>
+            <span>${team ? `${escapeHtml(team)} · ` : ""}${character.label}${variant.index ? ` · 컬러 ${variant.index + 1}` : ""}</span>
           </div>
           <button class="participant-card__remove" type="button" data-remove-id="${participant.id}" aria-label="${escapeName(participant.name)} 삭제">×</button>
         </article>`;
@@ -581,13 +582,14 @@
   function fighterButton(participant, match, isWinner) {
     if (!participant) return "";
     const slot = participant.id === match.a ? "a" : "b";
+    const team = String(participant.team || "").trim();
     const className = match.winner
       ? (isWinner ? " chosen" : " rejected")
       : "";
     return `
-      <button class="combatant${className}" type="button" data-initial-match="${match.id}" data-player-id="${participant.id}" ${match.auto ? "disabled" : ""}>
+      <button class="combatant${className}${team ? "" : " no-team"}" type="button" data-initial-match="${match.id}" data-player-id="${participant.id}" style="${zodiacStyle(participant)}" ${match.auto ? "disabled" : ""}>
         ${participantSprite(participant, slot, isWinner ? "victory" : "standing")}
-        <span class="fighter-copy"><strong>${escapeName(participant.name)}</strong><small>${escapeHtml(participant.team || "무소속")}</small></span>
+        <span class="fighter-copy${team ? "" : " no-team"}"><strong>${escapeName(participant.name)}</strong>${team ? `<small>${escapeHtml(team)}</small>` : ""}</span>
         ${isWinner ? '<span class="winner-tag">WINNER</span>' : ""}
       </button>`;
   }
@@ -745,11 +747,12 @@
   function bracketPlayerButton(id, match, treeType) {
     if (!id) return '<div class="bracket-player empty"><span>WAITING...</span><small>대기</small></div>';
     const participant = participantById(id);
+    const team = String(participant?.team || "").trim();
     const selected = match.selected === id;
     const label = treeType === "winner" ? "승자로 선택" : "패자로 선택";
     const slot = id === match.a ? "a" : "b";
     const state = selected && treeType === "winner" ? "victory" : "standing";
-    return `<button class="bracket-player focus-player${selected ? " selected" : ""}" type="button" data-bracket-type="${treeType}" data-round="${match.key.split(":")[0]}" data-match="${match.key.split(":")[1]}" data-player-id="${id}" ${!match.a || !match.b ? "disabled" : ""}>${participantSprite(participant, slot, state)}<span class="focus-player__copy"><strong>${participant?.name ? escapeName(participant.name) : "-"}</strong><em>${escapeHtml(participant?.team || "무소속")}</em></span><small>${selected ? (treeType === "winner" ? "WIN ↑" : "LOSE ↓") : label}</small></button>`;
+    return `<button class="bracket-player focus-player${selected ? " selected" : ""}${team ? "" : " no-team"}" type="button" data-bracket-type="${treeType}" data-round="${match.key.split(":")[0]}" data-match="${match.key.split(":")[1]}" data-player-id="${id}" style="${zodiacStyle(participant)}" ${!match.a || !match.b ? "disabled" : ""}>${participantSprite(participant, slot, state)}<span class="focus-player__copy${team ? "" : " no-team"}"><strong>${participant?.name ? escapeName(participant.name) : "-"}</strong>${team ? `<em>${escapeHtml(team)}</em>` : ""}</span><small>${selected ? (treeType === "winner" ? "WIN ↑" : "LOSE ↓") : label}</small></button>`;
   }
 
   function renderBracketMap(tree) {
@@ -788,7 +791,7 @@
 
     if (!activeMatch && tree.champion) {
       const champion = participantById(tree.champion);
-      container.innerHTML = `<div class="focus-complete focus-complete--${tree.type}"><span>${tree.type === "winner" ? "WINNER BRACKET COMPLETE" : "LOSER BRACKET COMPLETE"}</span><strong>${champion?.name ? escapeName(champion.name) : "-"}</strong><small>${tree.type === "winner" ? "최종 1위 진출자 결정" : "최하위 확정"}</small></div>${renderBracketMap(tree)}`;
+      container.innerHTML = `<div class="focus-complete focus-complete--${tree.type}"><span>${tree.type === "winner" ? "승자조 정복 완료" : "패자조 최종전 완료"}</span><strong>${champion?.name ? escapeName(champion.name) : "-"}</strong><small>${tree.type === "winner" ? "왕좌 접수 · 최종 1위 확정" : "최하위 확정"}</small></div>${renderBracketMap(tree)}`;
       return;
     }
 
@@ -1434,7 +1437,8 @@
       const isLast = id === payload.finalLast;
       const resultClass = isFirst ? " first" : isLast ? " last" : "";
       const title = isFirst ? "최종 1위" : isLast ? "최종 꼴등" : "";
-      return `<article class="roster-player${resultClass}" style="--credit-index:${index}"><span>${String(index + 1).padStart(2, "0")}</span><div><strong>${escapeName(entry.participant.name)}</strong><small>${escapeHtml(entry.participant.team || "무소속")}</small></div><em>${entry.wins}승${title ? ` · ${title}` : ""}</em></article>`;
+      const team = String(entry.participant.team || "").trim();
+      return `<article class="roster-player${resultClass}${team ? "" : " no-team"}" style="--credit-index:${index}"><span>${String(index + 1).padStart(2, "0")}</span><div><strong>${escapeName(entry.participant.name)}</strong>${team ? `<small>${escapeHtml(team)}</small>` : ""}</div><em>${entry.wins}승${title ? ` · ${title}` : ""}</em></article>`;
     }).join("");
     playResultSequence(false);
   }
