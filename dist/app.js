@@ -1194,6 +1194,15 @@
     const context = canvas.getContext("2d");
     const reducedMotion = matchMedia("(prefers-reduced-motion: reduce)").matches;
     const duration = reducedMotion ? 1100 : 7600;
+    const drawTiming = {
+      idleEnd: 450,
+      wobbleStart: 2850,
+      dropStart: 3400,
+      impactAt: 4100,
+      revealAt: 4500,
+      celebrationEnd: 5200
+    };
+    const ballColors = ["#ff496c", "#48c7ff", "#ffd84d"];
     let startedAt = 0;
     let particles = [];
     let exploded = false;
@@ -1258,29 +1267,39 @@
       context.restore();
     }
 
-    function drawClownSprite(frameIndex, cx, time) {
+    function clownLayout() {
+      const size = Math.min(430, innerWidth * .52, innerHeight * .58);
+      return { size, stageY: innerHeight * .77 };
+    }
+
+    function drawClownSprite(frameIndex, cx, time, motion = "still") {
       const sprite = characterAssets.clown;
       if (!sprite.complete || !sprite.naturalWidth) return;
       const cellWidth = sprite.naturalWidth / 2;
       const cellHeight = sprite.naturalHeight / 2;
-      const size = Math.min(430, innerWidth * .52, innerHeight * .58);
-      const stageY = innerHeight * .77;
-      const bounce = frameIndex === 1 ? Math.round(Math.sin(time * .008) * 5) : 0;
+      const { size, stageY } = clownLayout();
+      const sway = motion === "juggling" ? Math.sin(time * .006) * .018 : 0;
       const shake = frameIndex === 2 ? Math.sin(time * .035) * 4 : 0;
       const sx = (frameIndex % 2) * cellWidth;
       const sy = Math.floor(frameIndex / 2) * cellHeight;
       context.save();
-      context.translate(shake, bounce);
+      context.translate(cx + shake, stageY);
+      context.rotate(sway);
       context.shadowColor = frameIndex === 3 ? "#ffd84d" : "rgba(72,199,255,.38)";
       context.shadowBlur = frameIndex === 3 ? 28 : 10;
-      context.drawImage(sprite, sx, sy, cellWidth, cellHeight, cx - size / 2, stageY - size * .91, size, size);
+      context.drawImage(sprite, sx, sy, cellWidth, cellHeight, -size / 2, -size * .91, size, size);
       context.restore();
     }
 
-    function drawBall(x, y, color, glow = true) {
+    function drawBall(x, y, color, options = {}) {
+      const { glow = true, spin = 0, scaleX = 1, scaleY = 1, alpha = 1 } = options;
+      const responsiveScale = Math.max(.8, Math.min(1.15, Math.min(innerWidth, innerHeight) / 700));
       context.save();
       if (glow) { context.shadowColor = color; context.shadowBlur = 24; }
+      context.globalAlpha = alpha;
       context.translate(Math.round(x), Math.round(y));
+      context.rotate(spin);
+      context.scale(responsiveScale * scaleX, responsiveScale * scaleY);
       context.fillStyle = "#15102c";
       context.beginPath();
       context.moveTo(-8, -16);
@@ -1312,6 +1331,68 @@
       context.restore();
     }
 
+    function orbitPoint(index, time, cx) {
+      const { size, stageY } = clownLayout();
+      const orbitCenterY = stageY - size * .77;
+      const radiusX = Math.min(145, Math.max(62, size * .32));
+      const radiusY = Math.min(62, Math.max(28, size * .14));
+      // Phase the red ball to detach on the clown's upper-right side instead of crossing the face.
+      const angle = -Math.PI / 2 - 2 + (time - drawTiming.idleEnd) * .00315 + index * Math.PI * 2 / 3;
+      return {
+        x: cx + Math.cos(angle) * radiusX,
+        y: orbitCenterY + Math.sin(angle) * radiusY,
+        angle
+      };
+    }
+
+    function drawJugglingBalls(time, cx) {
+      if (time < drawTiming.idleEnd || time >= drawTiming.revealAt) return;
+      const floorY = innerHeight * .75 - 14;
+
+      for (let index = 2; index >= 0; index -= 1) {
+        let point = orbitPoint(index, time, cx);
+        let scaleX = 1;
+        let scaleY = 1;
+
+        if (index === 0 && time >= drawTiming.dropStart) {
+          const release = orbitPoint(index, drawTiming.dropStart, cx);
+          if (time < drawTiming.impactAt) {
+            const fall = Math.min(1, (time - drawTiming.dropStart) / (drawTiming.impactAt - drawTiming.dropStart));
+            point = {
+              x: release.x + Math.sin(time * .045) * 5 * (1 - fall),
+              y: release.y + (floorY - release.y) * fall * fall
+            };
+          } else {
+            const afterImpact = time - drawTiming.impactAt;
+            const bounceProgress = Math.min(1, afterImpact / 330);
+            point = {
+              x: release.x + afterImpact * .025,
+              y: floorY - Math.sin(bounceProgress * Math.PI) * 28 * (1 - bounceProgress)
+            };
+            const impactSquash = Math.max(0, 1 - afterImpact / 120);
+            scaleX = 1 + impactSquash * .38;
+            scaleY = 1 - impactSquash * .32;
+          }
+        } else if (index === 0 && time >= drawTiming.wobbleStart) {
+          const wobble = (time - drawTiming.wobbleStart) / (drawTiming.dropStart - drawTiming.wobbleStart);
+          point.x += Math.sin(time * .075) * (2 + wobble * 8);
+          point.y += Math.cos(time * .09) * (1 + wobble * 4);
+        }
+
+        if (!(index === 0 && time >= drawTiming.dropStart)) {
+          const trail = orbitPoint(index, time - 55, cx);
+          context.globalAlpha = .48;
+          rect(trail.x - 3, trail.y - 3, 6, 6, ballColors[index]);
+          context.globalAlpha = 1;
+        }
+        drawBall(point.x, point.y, ballColors[index], {
+          spin: point.angle ?? time * .012 + index,
+          scaleX,
+          scaleY
+        });
+      }
+    }
+
     function finish() {
       cancelAnimationFrame(animationFrame);
       renderTournament();
@@ -1323,38 +1404,22 @@
       const elapsed = reducedMotion ? (now - startedAt) * 7 : now - startedAt;
       if (elapsed >= duration) { finish(); return; }
       let shake = 0;
-      if (elapsed > 4050 && elapsed < 4550) shake = Math.round(Math.sin(elapsed * .12) * 8);
+      if (elapsed > drawTiming.impactAt - 50 && elapsed < drawTiming.revealAt + 50) shake = Math.round(Math.sin(elapsed * .12) * 8);
       drawStage(elapsed, shake);
       const cx = innerWidth / 2;
-      const cy = innerHeight * .56;
 
-      if (elapsed < 5200) {
-        const clownFrame = elapsed < 450 ? 0 : elapsed < 2850 ? 1 : elapsed < 4500 ? 2 : 3;
-        drawClownSprite(clownFrame, cx, elapsed);
-
-        // During SURPRISED, the balls detach from the JUGGLING sprite so one can fall independently.
-        if (elapsed >= 2850 && elapsed < 4500) {
-          for (let index = 0; index < 3; index += 1) {
-            const angle = elapsed * .0022 + index * Math.PI * 2 / 3;
-            let x = cx + Math.cos(angle) * Math.min(135, innerWidth * .21);
-            let y = cy - 145 + Math.sin(angle) * 45;
-            if (index === 0) {
-              if (elapsed < 3400) x = cx + 52 + Math.sin(elapsed * .09) * 9;
-              else {
-                const fall = (elapsed - 3400) / 700;
-                x = cx + 52 + Math.sin(elapsed * .04) * 4;
-                y = Math.min(innerHeight * .75 - 12, cy - 140 + 330 * fall * fall);
-              }
-            }
-            drawBall(x, y, ["#ff496c", "#48c7ff", "#ffd84d"][index]);
-          }
-        }
+      if (elapsed < drawTiming.celebrationEnd) {
+        const clownFrame = elapsed < drawTiming.dropStart ? 0 : elapsed < drawTiming.revealAt ? 2 : 3;
+        const clownMotion = elapsed >= drawTiming.idleEnd && elapsed < drawTiming.dropStart ? "juggling" : "still";
+        drawClownSprite(clownFrame, cx, elapsed, clownMotion);
+        drawJugglingBalls(elapsed, cx);
       }
 
-      if (elapsed > 4100 && !exploded) {
+      if (elapsed > drawTiming.impactAt && !exploded) {
         exploded = true;
+        const impactPoint = orbitPoint(0, drawTiming.dropStart, cx);
         particles = Array.from({ length: 36 }, (_, index) => ({
-          x: cx + 55, y: innerHeight * .75 - 20,
+          x: impactPoint.x, y: innerHeight * .75 - 20,
           vx: Math.cos(index * .9) * (2 + index % 5), vy: -2 - index % 7,
           color: ["#ffd84d", "#ff496c", "#48c7ff"][index % 3]
         }));
@@ -1364,11 +1429,13 @@
         rect(particle.x, particle.y, 6, 6, particle.color);
       });
 
-      if (elapsed < 2850) {
-        centerText(elapsed < 450 ? "행운을 준비하는 중..." : "대진표 추천 중...", Math.max(65, innerHeight * .12), Math.min(30, innerWidth * .055), "#fff5cf");
-        centerText(elapsed < 450 ? "곧 추첨을 시작합니다" : "빨강 · 파랑 · 노랑, 3개의 운명 구슬", Math.max(100, innerHeight * .18), 12, "#7eeeff");
-      } else if (elapsed < 4500) {
-        centerText("운명의 구슬이 선택되었습니다!", Math.max(65, innerHeight * .12), Math.min(25, innerWidth * .05), "#ffd84d");
+      if (elapsed < drawTiming.wobbleStart) {
+        centerText(elapsed < drawTiming.idleEnd ? "행운을 준비하는 중..." : "대진표 추천 중...", Math.max(65, innerHeight * .12), Math.min(30, innerWidth * .055), "#fff5cf");
+        centerText(elapsed < drawTiming.idleEnd ? "곧 추첨을 시작합니다" : "빨강 · 파랑 · 노랑, 3개의 운명 구슬이 회전합니다", Math.max(100, innerHeight * .18), 12, "#7eeeff");
+      } else if (elapsed < drawTiming.dropStart) {
+        centerText("하나의 구슬이 흔들립니다!", Math.max(65, innerHeight * .12), Math.min(25, innerWidth * .05), "#ffd84d");
+      } else if (elapsed < drawTiming.revealAt) {
+        centerText("운명의 구슬이 떨어집니다!", Math.max(65, innerHeight * .12), Math.min(25, innerWidth * .05), "#ffd84d");
       } else if (elapsed < 5800) {
         const revealed = participantById(tournamentState.drawOrder[0]);
         rect(cx - Math.min(300, innerWidth * .43), innerHeight * .16, Math.min(600, innerWidth * .86), 118, "#101638");
