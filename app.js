@@ -1289,6 +1289,10 @@
   function setCreditsVisible(visible) {
     views.result.classList.toggle("show-credits", visible);
     $("#showEndingCredits").textContent = visible ? "× 캐스트 닫기" : "☷ 엔딩 캐스트";
+    refs.endingCredits.setAttribute("aria-hidden", String(!visible));
+    $("#endingCreditsBackdrop").setAttribute("aria-hidden", String(!visible));
+    $("#endingCreditsBackdrop").tabIndex = visible ? 0 : -1;
+    if (visible) requestAnimationFrame(() => $("#closeEndingCredits").focus({ preventScroll: true }));
   }
 
   function playResultSequence(withSound = true) {
@@ -1358,6 +1362,11 @@
   $("#replayResult").addEventListener("click", () => playResultSequence(true));
   $("#showEndingCredits").addEventListener("click", () => {
     setCreditsVisible(!views.result.classList.contains("show-credits"));
+  });
+  $("#closeEndingCredits").addEventListener("click", () => setCreditsVisible(false));
+  $("#endingCreditsBackdrop").addEventListener("click", () => setCreditsVisible(false));
+  document.addEventListener("keydown", (event) => {
+    if (event.key === "Escape" && views.result.classList.contains("show-credits")) setCreditsVisible(false);
   });
   $("#copyResultLink").addEventListener("click", async () => {
     await copyText(window.location.href);
