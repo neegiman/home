@@ -635,9 +635,10 @@ body.result-mode { overflow: hidden; }
   .bracket-map { margin-inline: 0; padding: 10px; }
   .result-reveal { grid-template-rows: 54px 1fr 34px; background-position: 50% center; }
   .ending-header { padding: 6px 8px; }
+  .ending-header > div:first-child { min-width: 0; }
+  .ending-header strong { max-width: 28vw; }
   .ending-actions { gap: 4px; }
-  .ending-actions button, .ending-actions a { padding: 6px; font-size: 7px; }
-  .ending-actions #copyResultLink { display: none; }
+  .ending-actions button, .ending-actions a { padding: 6px 5px; font-size: 7px; white-space: nowrap; }
   .champion-nameplate { top: 3%; width: min(72vw, 370px); padding: 7px 10px 9px; border-width: 3px; }
   .champion-nameplate span { font-size: 6px; }
   .champion-nameplate strong { font-size: clamp(20px, 7vw, 35px); }
