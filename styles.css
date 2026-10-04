@@ -543,7 +543,7 @@ body.result-mode { overflow: hidden; }
 .result-stage-meta { position: absolute; z-index: 7; left: 18px; bottom: 14px; display: grid; gap: 6px; width: min(300px, 31vw); padding: 10px 12px; border-left: 4px solid #ffd84d; background: rgba(7,10,31,.86); }
 .result-stage-meta span { display: grid; grid-template-columns: 48px 1fr; gap: 8px; color: #ffd84d; font-size: 8px; letter-spacing: .08em; }
 .result-stage-meta b { overflow: hidden; color: white; font-weight: 700; white-space: nowrap; text-overflow: ellipsis; }
-.last-place-stage { right: 5%; bottom: 5%; }
+.last-place-stage { right: max(2%, calc(50% - clamp(360px, 28vw, 430px))); bottom: 5%; }
 .last-place-character { width: clamp(160px, 16vw, 210px); }
 .last-place-name { max-width: 190px; margin-bottom: -5px; color: white; border: 3px solid #ff496c; background: rgba(15,9,31,.94); font-size: clamp(9px, 1.3vw, 13px); }
 
