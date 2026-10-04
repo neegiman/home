@@ -297,9 +297,10 @@ button { color: inherit; }
 .duel-vs i { width: 92px; height: 3px; margin: 10px auto 0; background: repeating-linear-gradient(90deg, var(--cyan) 0 10px, transparent 10px 17px); opacity: .62; }
 .focus-complete { min-height: 390px; display: grid; place-content: center; gap: 12px; padding: 30px; text-align: center; background: radial-gradient(circle, rgba(255,216,77,.13), transparent 55%); }
 .focus-complete span { color: var(--cyan); font-size: 9px; letter-spacing: .18em; }
-.focus-complete strong { color: var(--gold); font-size: clamp(26px, 6vw, 52px); text-shadow: 4px 4px 0 #412250; }
+.focus-complete strong { max-width: min(92vw, 900px); color: var(--gold); font-size: clamp(26px, 6vw, 52px); line-height: 1.12; overflow-wrap: anywhere; text-shadow: 4px 4px 0 #412250; }
 .focus-complete small { color: #aeb9de; font-size: 11px; }
 .focus-complete--winner span { color: #fff1a3; font-size: 11px; letter-spacing: .12em; text-shadow: 2px 2px 0 #513058; }
+.focus-complete--winner strong { font-size: clamp(40px, 7.2vw, 76px); letter-spacing: -.04em; text-shadow: 5px 5px 0 #412250, 0 0 24px rgba(255,216,77,.28); }
 .focus-complete--winner small { color: white; font-size: 13px; }
 .focus-complete--loser strong { color: #ff8ba0; }
 
@@ -496,17 +497,17 @@ body.result-mode { overflow: hidden; }
 .focus-player.crying .battle-trainer { filter: var(--zodiac-tone, none) grayscale(.25) saturate(.65) drop-shadow(7px 9px 0 rgba(5,6,20,.58)); }
 
 .bracket-scroll { min-height: 0; overflow-x: hidden; padding: 14px; }
-.bracket-map { display: flex; gap: 24px; margin: 18px 8px 5px; padding: 15px; overflow-x: auto; border: 1px solid #334579; background: rgba(7,11,32,.9); scrollbar-color: #58689f #0a0e29; }
-.bracket-map__round { flex: 1 0 150px; min-width: 150px; display: flex; flex-direction: column; }
+.bracket-map { position: relative; isolation: isolate; display: flex; gap: 34px; margin: 18px 8px 5px; padding: 15px; overflow-x: auto; border: 1px solid #334579; background: rgba(7,11,32,.9); scrollbar-color: #58689f #0a0e29; }
+.bracket-map__lines { position: absolute; z-index: 0; left: 0; top: 0; pointer-events: none; overflow: visible; }
+.bracket-map__lines path { fill: none; stroke: #344477; stroke-width: 2; vector-effect: non-scaling-stroke; shape-rendering: crispEdges; }
+.bracket-map__lines path.complete { stroke: #48c7ff; filter: drop-shadow(0 0 4px rgba(72,199,255,.78)); }
+.bracket-panel--loser .bracket-map__lines path.complete { stroke: #ff496c; filter: drop-shadow(0 0 4px rgba(255,73,108,.72)); }
+.bracket-map__round { position: relative; z-index: 1; flex: 1 0 150px; min-width: 150px; display: flex; flex-direction: column; }
 .bracket-map__round h3 { margin: 0 0 10px; color: #ffd84d; font-size: 8px; letter-spacing: .13em; text-align: center; }
 .bracket-map__matches { flex: 1; display: flex; flex-direction: column; justify-content: space-around; gap: 10px; }
 .bracket-map__match { position: relative; display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; gap: 5px; min-height: 48px; padding: 7px; color: #8190c2; border: 1px solid #2d3969; background: #0c1232; font-size: 8px; }
-.bracket-map__match::after { content: ""; position: absolute; left: 100%; top: 50%; width: 25px; height: 2px; background: #344477; }
-.bracket-map__round:last-child .bracket-map__match::after { display: none; }
 .bracket-map__match.complete { color: white; border-color: #4b78b6; box-shadow: inset 3px 0 #48c7ff; }
-.bracket-map__match.complete::after { background: linear-gradient(90deg, #48c7ff, #ffd84d); box-shadow: 0 0 8px #48c7ff; }
 .bracket-panel--loser .bracket-map__match.complete { border-color: #8d305a; box-shadow: inset 3px 0 #ff496c; }
-.bracket-panel--loser .bracket-map__match.complete::after { background: linear-gradient(90deg, #ff496c, #7d3f96); box-shadow: 0 0 8px #ff496c; }
 .bracket-map__match span { overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
 .bracket-map__match i { color: #6878aa; font-size: 6px; font-style: normal; }
 .bracket-map__match strong { grid-column: 1 / -1; overflow: hidden; color: #ffd84d; font-size: 7px; white-space: nowrap; text-overflow: ellipsis; }
