@@ -6,6 +6,7 @@
   const views = {
     registration: $("#registrationView"),
     animation: $("#animationView"),
+    finalStair: $("#finalStairView"),
     tournament: $("#tournamentView"),
     result: $("#resultView")
   };
@@ -38,29 +39,40 @@
     battleFxText: $("#battleFxText"),
     battleFxNames: $("#battleFxNames"),
     celebrationCanvas: $("#celebrationCanvas"),
+    finalStairCanvas: $("#finalStairAnimation"),
+    finalStairCaption: $("#finalStairCaption"),
+    endingCredits: $("#endingCredits"),
     toast: $("#toast")
   };
 
   let draftParticipants = [];
   let tournamentState = null;
   let animationFrame = 0;
+  let stairAnimationFrame = 0;
   let toastTimer = 0;
   let battleFxTimer = 0;
   let fireworksFrame = 0;
   let selectionLocked = false;
   let resultTimers = [];
+  let initialReviewId = null;
 
   const characterAssets = {
     clown: new Image(),
     trainer: new Image(),
-    drawStage: new Image()
+    lastPlace: new Image(),
+    drawStage: new Image(),
+    championArena: new Image()
   };
   characterAssets.clown.decoding = "async";
   characterAssets.trainer.decoding = "async";
+  characterAssets.lastPlace.decoding = "async";
   characterAssets.drawStage.decoding = "async";
+  characterAssets.championArena.decoding = "async";
   characterAssets.clown.src = "assets/characters/clown-spritesheet.png";
   characterAssets.trainer.src = "assets/characters/trainer-spritesheet.png";
+  characterAssets.lastPlace.src = "assets/characters/last-place-bow-spritesheet.png";
   characterAssets.drawStage.src = "assets/backgrounds/draw-stage.png";
+  characterAssets.championArena.src = "assets/backgrounds/champion-arena.png";
 
   function uid() {
     return `p_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 7)}`;
@@ -79,6 +91,17 @@
 
   function escapeName(value) {
     return escapeHtml(honorName(value));
+  }
+
+  function participantHue(id) {
+    let hash = 0;
+    for (const char of String(id || "")) hash = ((hash << 5) - hash + char.charCodeAt(0)) | 0;
+    return Math.abs(hash) % 46 - 18;
+  }
+
+  function participantSprite(participant, slot = "a", state = "standing") {
+    const hue = participantHue(participant?.id);
+    return `<span class="battle-trainer battle-trainer--${slot}" data-state="${state}" style="--fighter-hue:${hue}deg" aria-hidden="true"></span>`;
   }
 
   function encodeState(value) {
@@ -123,14 +146,14 @@
     clearTimeout(battleFxTimer);
     refs.battleFx.hidden = false;
     refs.battleFx.className = `battle-fx battle-fx--${type}`;
-    refs.battleFxText.textContent = type === "loser" ? "또르르…" : "대결!";
+    refs.battleFxText.textContent = type === "loser" ? "패자 결정" : type === "intro" ? "BATTLE!" : "승자 결정";
     refs.battleFxNames.textContent = `${honorName(firstName)}  VS  ${honorName(secondName)}`;
     void refs.battleFx.offsetWidth;
     refs.battleFx.classList.add("active");
     battleFxTimer = setTimeout(() => {
       refs.battleFx.classList.remove("active");
       refs.battleFx.hidden = true;
-    }, type === "loser" ? 900 : 720);
+    }, type === "loser" ? 1050 : 820);
   }
 
   function startFireworks(duration = 2600) {
@@ -398,13 +421,13 @@
 
   function fighterButton(participant, match, isWinner) {
     if (!participant) return "";
-    const initial = participant.name.slice(0, 1);
+    const slot = participant.id === match.a ? "a" : "b";
     const className = match.winner
       ? (isWinner ? " chosen" : " rejected")
       : "";
     return `
       <button class="combatant${className}" type="button" data-initial-match="${match.id}" data-player-id="${participant.id}" ${match.auto ? "disabled" : ""}>
-        <span class="fighter-avatar">${escapeHtml(initial)}</span>
+        ${participantSprite(participant, slot, isWinner ? "victory" : "standing")}
         <span class="fighter-copy"><strong>${escapeName(participant.name)}</strong><small>${escapeHtml(participant.team || "무소속")}</small></span>
         ${isWinner ? '<span class="winner-tag">WINNER</span>' : ""}
       </button>`;
@@ -412,7 +435,9 @@
 
   function renderInitialMatches() {
     const playable = tournamentState.initialMatches.filter((match) => !match.auto);
-    const current = playable.find((match) => !match.winner) || playable.at(-1);
+    const pending = playable.find((match) => !match.winner);
+    const reviewMatch = initialComplete() && initialReviewId ? playable.find((match) => match.id === initialReviewId) : null;
+    const current = pending || reviewMatch || playable.at(-1);
     if (!current) {
       refs.initialMatches.innerHTML = '<div class="focus-complete"><span>BYE ROUND</span><strong>모든 참가자가 자동 진출했습니다</strong></div>';
       return;
@@ -433,11 +458,18 @@
             ${fighterButton(b, current, current.winner === current.b)}
           </div>
         </article>
+        <div class="initial-match-history" aria-label="초기 경기 기록">${playable.map((match, matchIndex) => `<button type="button" data-review-initial="${match.id}" class="${match.id === current.id ? "active" : ""}" ${!initialComplete() ? "disabled" : ""}>MATCH ${String(matchIndex + 1).padStart(2, "0")}<small>${match.winner ? escapeName(participantById(match.winner)?.name || "") : "대기"}</small></button>`).join("")}</div>
         <div class="focus-progress"><i style="width:${Math.round(completedCount / playable.length * 100)}%"></i></div>
       </div>`;
   }
 
   refs.initialMatches.addEventListener("click", (event) => {
+    const reviewButton = event.target.closest("[data-review-initial]");
+    if (reviewButton && !reviewButton.disabled) {
+      initialReviewId = reviewButton.dataset.reviewInitial;
+      renderInitialMatches();
+      return;
+    }
     const button = event.target.closest("[data-initial-match]");
     if (!button || selectionLocked) return;
     const match = tournamentState.initialMatches.find((item) => item.id === button.dataset.initialMatch);
@@ -450,7 +482,7 @@
     button.classList.add("selecting");
     const other = button.parentElement.querySelector(`[data-player-id="${CSS.escape(rejected)}"]`);
     other?.classList.add("dropping");
-    playBattleFx("initial", chosenParticipant?.name || "", rejectedParticipant?.name || "");
+    playBattleFx("winner", chosenParticipant?.name || "", rejectedParticipant?.name || "");
     setTimeout(() => {
       match.winner = chosen;
       match.loser = rejected;
@@ -462,7 +494,15 @@
       renderBrackets();
       if (initialComplete()) {
         const winnerIds = tournamentState.initialMatches.map((item) => item.winner).filter(Boolean);
+        const loserIds = tournamentState.initialMatches.map((item) => item.loser).filter(Boolean);
         const winnerTree = buildBracket(winnerIds, "winner");
+        const loserTree = buildBracket(loserIds, "loser");
+        if (winnerTree.champion && loserTree.champion) {
+          tournamentState.uiStage = "result";
+          saveTournamentUrl();
+          playFinalStairScene(winnerTree.champion, loserTree.champion);
+          return;
+        }
         if (winnerTree.champion) {
           startFireworks(2400);
           showToast(`${honorName(participantById(winnerTree.champion)?.name || "")} 우승 확정!`);
@@ -548,7 +588,24 @@
     const participant = participantById(id);
     const selected = match.selected === id;
     const label = treeType === "winner" ? "승자로 선택" : "패자로 선택";
-    return `<button class="bracket-player focus-player${selected ? " selected" : ""}" type="button" data-bracket-type="${treeType}" data-round="${match.key.split(":")[0]}" data-match="${match.key.split(":")[1]}" data-player-id="${id}" ${!match.a || !match.b ? "disabled" : ""}><span class="focus-player__avatar">${escapeHtml(participant?.name?.slice(0, 1) || "?")}</span><span class="focus-player__copy"><strong>${participant?.name ? escapeName(participant.name) : "-"}</strong><em>${escapeHtml(participant?.team || "무소속")}</em></span><small>${selected ? (treeType === "winner" ? "WIN ↑" : "LOSE ↓") : label}</small></button>`;
+    const slot = id === match.a ? "a" : "b";
+    const state = selected && treeType === "winner" ? "victory" : "standing";
+    return `<button class="bracket-player focus-player${selected ? " selected" : ""}" type="button" data-bracket-type="${treeType}" data-round="${match.key.split(":")[0]}" data-match="${match.key.split(":")[1]}" data-player-id="${id}" ${!match.a || !match.b ? "disabled" : ""}>${participantSprite(participant, slot, state)}<span class="focus-player__copy"><strong>${participant?.name ? escapeName(participant.name) : "-"}</strong><em>${escapeHtml(participant?.team || "무소속")}</em></span><small>${selected ? (treeType === "winner" ? "WIN ↑" : "LOSE ↓") : label}</small></button>`;
+  }
+
+  function renderBracketMap(tree) {
+    if (!tree.rounds.length) return "";
+    return `<div class="bracket-map" aria-label="${tree.type === "winner" ? "승자조" : "패자조"} 전체 대진 경로">
+      ${tree.rounds.map((round) => {
+        const title = round.index === tree.rounds.length - 1 ? "FINAL" : `ROUND ${round.index + 1}`;
+        return `<section class="bracket-map__round"><h3>${title}</h3><div class="bracket-map__matches">${round.matches.map((match) => {
+          const a = participantById(match.a);
+          const b = participantById(match.b);
+          const picked = participantById(match.selected || match.advancer);
+          return `<article class="bracket-map__match${match.resolved ? " complete" : ""}"><span>${a ? escapeName(a.name) : "BYE"}</span><i>VS</i><span>${b ? escapeName(b.name) : "BYE"}</span>${picked ? `<strong>${tree.type === "winner" ? "↑" : "↓"} ${escapeName(picked.name)}</strong>` : ""}</article>`;
+        }).join("")}</div></section>`;
+      }).join("")}
+    </div>`;
   }
 
   function renderBracketTree(tree, container) {
@@ -572,7 +629,7 @@
 
     if (!activeMatch && tree.champion) {
       const champion = participantById(tree.champion);
-      container.innerHTML = `<div class="focus-complete focus-complete--${tree.type}"><span>${tree.type === "winner" ? "WINNER BRACKET COMPLETE" : "LOSER BRACKET COMPLETE"}</span><strong>${champion?.name ? escapeName(champion.name) : "-"}</strong><small>${tree.type === "winner" ? "최종 1위 진출자 결정" : "최하위 확정"}</small></div>`;
+      container.innerHTML = `<div class="focus-complete focus-complete--${tree.type}"><span>${tree.type === "winner" ? "WINNER BRACKET COMPLETE" : "LOSER BRACKET COMPLETE"}</span><strong>${champion?.name ? escapeName(champion.name) : "-"}</strong><small>${tree.type === "winner" ? "최종 1위 진출자 결정" : "최하위 확정"}</small></div>${renderBracketMap(tree)}`;
       return;
     }
 
@@ -593,7 +650,7 @@
         ${bracketPlayerButton(activeMatch.b, activeMatch, tree.type)}
       </div>
       <div class="focus-progress"><i style="width:${Math.round(resolvedInRound / activeRound.matches.length * 100)}%"></i></div>
-    </div>`;
+    </div>${renderBracketMap(tree)}`;
   }
 
   function countPlayableMatches(tree) {
@@ -717,6 +774,9 @@
       const opponentButton = duelButtons.find((candidate) => candidate !== button);
       const selectedParticipant = participantById(button.dataset.playerId);
       const opponentParticipant = participantById(opponentButton?.dataset.playerId);
+      const beforeWinnerIds = tournamentState.initialMatches.map((match) => match.winner).filter(Boolean);
+      const beforeLoserIds = tournamentState.initialMatches.map((match) => match.loser).filter(Boolean);
+      const wasFinished = Boolean(buildBracket(beforeWinnerIds, "winner").champion && buildBracket(beforeLoserIds, "loser").champion);
       selectionLocked = true;
       button.classList.add("selected");
       opponentButton?.classList.add("impact-hit");
@@ -738,15 +798,180 @@
         const updatedTree = buildBracket(updatedIds, type);
         selectionLocked = false;
         saveTournamentUrl();
+        const finalWinnerTree = buildBracket(tournamentState.initialMatches.map((match) => match.winner).filter(Boolean), "winner");
+        const finalLoserTree = buildBracket(tournamentState.initialMatches.map((match) => match.loser).filter(Boolean), "loser");
+        const isNewFinal = !wasFinished && Boolean(finalWinnerTree.champion && finalLoserTree.champion);
+        if (isNewFinal) {
+          tournamentState.uiStage = "result";
+          saveTournamentUrl();
+          playFinalStairScene(finalWinnerTree.champion, finalLoserTree.champion);
+          return;
+        }
         renderBrackets();
         if (type === "winner" && updatedTree.champion) {
           const champion = participantById(updatedTree.champion);
           startFireworks(2800);
           showToast(`${honorName(champion?.name || "")} 우승 확정!`);
         }
-      }, type === "loser" ? 900 : 720);
+      }, type === "loser" ? 1050 : 820);
     });
   });
+
+  function transitionToShareResult() {
+    const payload = createSharePayload();
+    const url = new URL(window.location.href);
+    url.search = "";
+    url.searchParams.set("share", encodeState(payload));
+    history.replaceState(null, "", url);
+    renderSharePage(payload);
+  }
+
+  function playFinalStairScene(firstId, lastId) {
+    showOnly("finalStair");
+    cancelAnimationFrame(stairAnimationFrame);
+    const canvas = refs.finalStairCanvas;
+    const context = canvas.getContext("2d");
+    const first = participantById(firstId);
+    const last = participantById(lastId);
+    const reducedMotion = matchMedia("(prefers-reduced-motion: reduce)").matches;
+    const duration = reducedMotion ? 1300 : 8200;
+    let startedAt = performance.now();
+    let completed = false;
+    let lastCaption = "";
+
+    function resize() {
+      const ratio = Math.min(window.devicePixelRatio || 1, 2);
+      canvas.width = Math.round(innerWidth * ratio);
+      canvas.height = Math.round(innerHeight * ratio);
+      canvas.style.width = `${innerWidth}px`;
+      canvas.style.height = `${innerHeight}px`;
+      context.setTransform(ratio, 0, 0, ratio, 0, 0);
+      context.imageSmoothingEnabled = false;
+    }
+
+    function clamp(value, min = 0, max = 1) { return Math.max(min, Math.min(max, value)); }
+    function ease(value) { const t = clamp(value); return t * t * (3 - 2 * t); }
+    function mix(from, to, value) { return from + (to - from) * value; }
+
+    function drawCover(image) {
+      if (!image.complete || !image.naturalWidth) {
+        context.fillStyle = "#111332";
+        context.fillRect(0, 0, innerWidth, innerHeight);
+        return;
+      }
+      const scale = Math.max(innerWidth / image.naturalWidth, innerHeight / image.naturalHeight);
+      const width = image.naturalWidth * scale;
+      const height = image.naturalHeight * scale;
+      context.drawImage(image, (innerWidth - width) / 2, (innerHeight - height) / 2, width, height);
+    }
+
+    function drawSprite(sheet, frame, x, feetY, size, options = {}) {
+      if (!sheet.complete || !sheet.naturalWidth) return;
+      const cellWidth = sheet.naturalWidth / 2;
+      const cellHeight = sheet.naturalHeight / 2;
+      const sourceX = (frame % 2) * cellWidth;
+      const sourceY = Math.floor(frame / 2) * cellHeight;
+      context.save();
+      context.translate(Math.round(x), Math.round(feetY));
+      if (options.mirror) context.scale(-1, 1);
+      if (options.filter) context.filter = options.filter;
+      context.globalAlpha = options.alpha ?? 1;
+      context.shadowColor = options.glow || "rgba(7,9,28,.65)";
+      context.shadowBlur = options.glow ? 24 : 9;
+      context.drawImage(sheet, sourceX, sourceY, cellWidth, cellHeight, -size / 2, -size, size, size);
+      context.restore();
+    }
+
+    function drawNameplate(name, x, y, tone) {
+      const label = honorName(name);
+      context.font = `900 ${Math.max(15, Math.min(22, innerWidth * .026))}px Pretendard, sans-serif`;
+      const width = Math.min(250, Math.max(122, context.measureText(label).width + 52));
+      context.fillStyle = "rgba(8,10,29,.94)";
+      context.fillRect(Math.round(x - width / 2), Math.round(y - 23), Math.round(width), 46);
+      context.strokeStyle = tone;
+      context.lineWidth = 3;
+      context.strokeRect(Math.round(x - width / 2), Math.round(y - 23), Math.round(width), 46);
+      context.fillStyle = tone;
+      context.textAlign = "center";
+      context.textBaseline = "middle";
+      context.fillText(label, x, y + 1, width - 18);
+    }
+
+    function setCaption(value) {
+      if (value === lastCaption) return;
+      lastCaption = value;
+      refs.finalStairCaption.textContent = value;
+    }
+
+    function finish() {
+      if (completed) return;
+      completed = true;
+      cancelAnimationFrame(stairAnimationFrame);
+      transitionToShareResult();
+    }
+
+    resize();
+    window.addEventListener("resize", resize, { once: true });
+    $("#skipFinalStair").onclick = finish;
+
+    function frame(now) {
+      const elapsed = reducedMotion ? (now - startedAt) * 7 : now - startedAt;
+      if (elapsed >= duration) { finish(); return; }
+      drawCover(characterAssets.championArena);
+      const shade = context.createLinearGradient(0, 0, 0, innerHeight);
+      shade.addColorStop(0, "rgba(10,12,42,.16)");
+      shade.addColorStop(1, "rgba(8,5,22,.45)");
+      context.fillStyle = shade;
+      context.fillRect(0, 0, innerWidth, innerHeight);
+
+      const size = Math.min(260, innerWidth * .27, innerHeight * .38);
+      const climb = ease((elapsed - 650) / 3000);
+      const winnerContinue = ease((elapsed - 3400) / 2100);
+      const winnerX = mix(innerWidth * .42, innerWidth * .5, winnerContinue);
+      const winnerY = mix(innerHeight * .91, innerHeight * .69, Math.max(climb, winnerContinue));
+      const lastX = mix(innerWidth * .58, innerWidth * .64, climb);
+      const lastY = mix(innerHeight * .91, innerHeight * .73, climb);
+      const winnerFrame = elapsed > 5700 ? (elapsed % 1200 < 600 ? 3 : 2) : 1;
+
+      if (elapsed < 700) setCaption("최종 1위와 최하위의 운명이 결정되었습니다");
+      else if (elapsed < 3200) setCaption("두 참가자가 마지막 계단을 오릅니다");
+      else if (elapsed < 4550) setCaption(`${honorName(last?.name || "")}이 발을 헛디뎠습니다!`);
+      else if (elapsed < 5900) setCaption(`${honorName(first?.name || "")}은 정상으로 향합니다`);
+      else setCaption(`${honorName(first?.name || "")} 최종 1위!`);
+
+      drawSprite(characterAssets.trainer, winnerFrame, winnerX, winnerY, size, { mirror: false, glow: elapsed > 5600 ? "#ffd84d" : "rgba(72,199,255,.35)" });
+      drawNameplate(first?.name || "", winnerX, winnerY - size * .9, "#ffd84d");
+
+      if (elapsed < 3300) {
+        drawSprite(characterAssets.trainer, 1, lastX, lastY, size * .94, { mirror: true, filter: "hue-rotate(-18deg) saturate(.86)" });
+        drawNameplate(last?.name || "", lastX, lastY - size * .84, "#ff6b87");
+      } else {
+        const fallAge = elapsed - 3300;
+        const fallFrame = fallAge < 330 ? 0 : fallAge < 680 ? 1 : fallAge < 1080 ? 2 : 3;
+        const fallX = innerWidth * .68 + Math.sin(fallAge * .025) * (fallAge < 550 ? 8 : 0);
+        const fallY = innerHeight * .82 + Math.min(16, fallAge * .016);
+        drawSprite(characterAssets.lastPlace, fallFrame, fallX, fallY, size * .82, { glow: "rgba(255,73,108,.25)" });
+        drawNameplate(last?.name || "", fallX, fallY - size * .7, "#ff6b87");
+        if (fallAge < 500) {
+          context.fillStyle = `rgba(255,245,207,${.45 * (1 - fallAge / 500)})`;
+          context.fillRect(0, 0, innerWidth, innerHeight);
+        }
+      }
+
+      if (elapsed > 5700) {
+        for (let index = 0; index < 18; index += 1) {
+          const angle = index * .78 + elapsed * .002;
+          const radius = 80 + (index % 4) * 24;
+          const x = winnerX + Math.cos(angle) * radius;
+          const y = winnerY - size * .58 + Math.sin(angle) * radius * .55;
+          context.fillStyle = ["#ffd84d", "#fff5cf", "#48c7ff"][index % 3];
+          context.fillRect(Math.round(x), Math.round(y), 5 + index % 2 * 3, 5 + index % 2 * 3);
+        }
+      }
+      stairAnimationFrame = requestAnimationFrame(frame);
+    }
+    stairAnimationFrame = requestAnimationFrame(frame);
+  }
 
   $("#resetButton").addEventListener("click", () => {
     if (!confirm("현재 토너먼트를 끝내고 새 게임을 시작할까요?")) return;
@@ -793,6 +1018,48 @@
 
   $("#viewResultButton").addEventListener("click", () => { window.location.href = getShareUrl(); });
 
+  function computeStandings(payload) {
+    const stats = new Map(payload.participants.map((participant, index) => [participant.id, {
+      participant,
+      wins: 0,
+      advancement: 0,
+      registrationIndex: index
+    }]));
+    const initialMatches = payload.initialResults || payload.initialMatches || [];
+    initialMatches.forEach((match) => {
+      if (match.winner && !match.auto && stats.has(match.winner)) stats.get(match.winner).wins += 1;
+      if (match.winner && stats.has(match.winner)) stats.get(match.winner).advancement = Math.max(stats.get(match.winner).advancement, 100);
+    });
+
+    (payload.winnerBracketRounds || []).forEach((round) => {
+      round.matches.forEach((match) => {
+        const selected = match.selected || payload.winnerResults?.[match.key] || (match.auto ? match.advancer : null);
+        if (!selected || !stats.has(selected)) return;
+        if (!match.auto && match.a && match.b) stats.get(selected).wins += 1;
+        stats.get(selected).advancement = Math.max(stats.get(selected).advancement, 200 + round.index);
+      });
+    });
+
+    (payload.loserBracketRounds || []).forEach((round) => {
+      round.matches.forEach((match) => {
+        const selectedLoser = match.selected || payload.loserResults?.[match.key] || (match.auto ? match.advancer : null);
+        if (!selectedLoser) return;
+        if (!match.auto && match.a && match.b) {
+          const actualWinner = selectedLoser === match.a ? match.b : match.a;
+          if (actualWinner && stats.has(actualWinner)) {
+            stats.get(actualWinner).wins += 1;
+            stats.get(actualWinner).advancement = Math.max(stats.get(actualWinner).advancement, 50 + round.index);
+          }
+        }
+        if (stats.has(selectedLoser)) stats.get(selectedLoser).advancement = Math.min(stats.get(selectedLoser).advancement, -(round.index + 1));
+      });
+    });
+
+    if (stats.has(payload.finalFirst)) stats.get(payload.finalFirst).advancement = 999;
+    if (stats.has(payload.finalLast)) stats.get(payload.finalLast).advancement = -999;
+    return [...stats.values()].sort((a, b) => b.wins - a.wins || b.advancement - a.advancement || a.registrationIndex - b.registrationIndex);
+  }
+
   function renderSharePage(payload) {
     showOnly("result");
     const byId = new Map(payload.participants.map((participant) => [participant.id, participant]));
@@ -804,14 +1071,21 @@
     $("#shareTournamentName").textContent = payload.tournament.name;
     $("#sharePrize").textContent = payload.tournament.prize || "없음";
     $("#shareMemo").textContent = payload.tournament.memo || "없음";
-    const visiblePlayers = payload.drawOrder.slice(0, 6);
-    $("#shareParticipantList").innerHTML = visiblePlayers.map((id, index) => {
-      const participant = byId.get(id);
-      const resultClass = id === payload.finalLast ? " last" : "";
-      const badge = id === payload.finalFirst ? "♛" : id === payload.finalLast ? "▼" : "";
-      return `<article class="roster-player${resultClass}"><span>${String(index + 1).padStart(2, "0")}</span><div><strong>${participant?.name ? escapeName(participant.name) : "-"}</strong><small>${escapeHtml(participant?.team || "무소속")}</small></div><em>${badge}</em></article>`;
-    }).join("") + (payload.drawOrder.length > visiblePlayers.length ? `<div class="roster-more">+${payload.drawOrder.length - visiblePlayers.length}명</div>` : "");
+    const standings = computeStandings(payload);
+    $("#shareParticipantList").innerHTML = standings.map((entry, index) => {
+      const id = entry.participant.id;
+      const isFirst = id === payload.finalFirst;
+      const isLast = id === payload.finalLast;
+      const resultClass = isFirst ? " first" : isLast ? " last" : "";
+      const title = isFirst ? "최종 1위" : isLast ? "최종 꼴등" : "";
+      return `<article class="roster-player${resultClass}" style="--credit-index:${index}"><span>${String(index + 1).padStart(2, "0")}</span><div><strong>${escapeName(entry.participant.name)}</strong><small>${escapeHtml(entry.participant.team || "무소속")}</small></div><em>${entry.wins}승${title ? ` · ${title}` : ""}</em></article>`;
+    }).join("");
     playResultSequence(false);
+  }
+
+  function setCreditsVisible(visible) {
+    views.result.classList.toggle("show-credits", visible);
+    $("#showEndingCredits").textContent = visible ? "× 캐스트 닫기" : "☷ 엔딩 캐스트";
   }
 
   function playResultSequence(withSound = true) {
@@ -826,6 +1100,8 @@
     trainer.dataset.state = "idle";
     beat.textContent = "두구두구...";
     resultView.classList.remove("playing");
+    setCreditsVisible(false);
+    refs.endingCredits.scrollTop = 0;
     intro.classList.remove("done");
     void resultView.offsetWidth;
     resultView.classList.add("playing");
@@ -841,6 +1117,7 @@
     }, 3600));
     resultTimers.push(setTimeout(() => { trainer.dataset.state = "triumph"; }, 4750));
     resultTimers.push(setTimeout(() => { trainer.dataset.state = "victory"; }, 5750));
+    resultTimers.push(setTimeout(() => { setCreditsVisible(true); }, 7200));
     if (withSound) playFanfare();
   }
 
@@ -850,6 +1127,7 @@
     $("#resultIntro").classList.add("done");
     $("#resultTrainer").dataset.state = "victory";
     startFireworks(3000);
+    resultTimers.push(setTimeout(() => setCreditsVisible(true), 4200));
   });
 
   function playFanfare() {
@@ -874,6 +1152,13 @@
   }
 
   $("#replayResult").addEventListener("click", () => playResultSequence(true));
+  $("#showEndingCredits").addEventListener("click", () => {
+    setCreditsVisible(!views.result.classList.contains("show-credits"));
+  });
+  $("#copyResultLink").addEventListener("click", async () => {
+    await copyText(window.location.href);
+    showToast("결과 공유 링크를 복사했습니다!");
+  });
 
   // Canvas draw animation ---------------------------------------------------
   function startDrawAnimation() {
