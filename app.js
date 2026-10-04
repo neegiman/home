@@ -45,6 +45,23 @@
     toast: $("#toast")
   };
 
+  const ZODIAC_CHARACTERS = Object.freeze([
+    { key: "rat", label: "쥐", accent: "#43d6d1" },
+    { key: "ox", label: "소", accent: "#d39a45" },
+    { key: "tiger", label: "호랑이", accent: "#ff8a32" },
+    { key: "rabbit", label: "토끼", accent: "#ff809f" },
+    { key: "dragon", label: "용", accent: "#48c77b" },
+    { key: "snake", label: "뱀", accent: "#a86de2" },
+    { key: "horse", label: "말", accent: "#438de8" },
+    { key: "goat", label: "양", accent: "#48cbbf" },
+    { key: "monkey", label: "원숭이", accent: "#f5b431" },
+    { key: "rooster", label: "닭", accent: "#ef5c4e" },
+    { key: "dog", label: "개", accent: "#3f74cf" },
+    { key: "boar", label: "돼지", accent: "#d75a7b" }
+  ]);
+  const ZODIAC_COLUMNS = 4;
+  const ZODIAC_ROWS = 3;
+
   let draftParticipants = [];
   let tournamentState = null;
   let animationFrame = 0;
@@ -59,27 +76,18 @@
   const characterAssets = {
     clown: new Image(),
     clownJuggle: new Image(),
-    trainer: new Image(),
-    trainerCutscene: new Image(),
-    lastPlace: new Image(),
-    loserCutscene: new Image(),
+    zodiac: new Image(),
     drawStage: new Image(),
     championArena: new Image()
   };
   characterAssets.clown.decoding = "async";
   characterAssets.clownJuggle.decoding = "async";
-  characterAssets.trainer.decoding = "async";
-  characterAssets.trainerCutscene.decoding = "async";
-  characterAssets.lastPlace.decoding = "async";
-  characterAssets.loserCutscene.decoding = "async";
+  characterAssets.zodiac.decoding = "async";
   characterAssets.drawStage.decoding = "async";
   characterAssets.championArena.decoding = "async";
   characterAssets.clown.src = "assets/characters/clown-spritesheet.png";
   characterAssets.clownJuggle.src = "assets/characters/clown-juggle-8f.png";
-  characterAssets.trainer.src = "assets/characters/trainer-spritesheet.png";
-  characterAssets.trainerCutscene.src = "assets/characters/trainer-cutscene-12f.png";
-  characterAssets.lastPlace.src = "assets/characters/last-place-bow-spritesheet.png";
-  characterAssets.loserCutscene.src = "assets/characters/loser-cutscene-12f.png";
+  characterAssets.zodiac.src = "assets/characters/zodiac-character-concept-v1.png";
   characterAssets.drawStage.src = "assets/backgrounds/draw-stage.png";
   characterAssets.championArena.src = "assets/backgrounds/champion-arena.png";
 
@@ -117,15 +125,57 @@
     return escapeHtml(honorName(value));
   }
 
-  function participantHue(id) {
+  function legacyCharacterIndex(id) {
     let hash = 0;
     for (const char of String(id || "")) hash = ((hash << 5) - hash + char.charCodeAt(0)) | 0;
-    return Math.abs(hash) % 46 - 18;
+    return Math.abs(hash) % ZODIAC_CHARACTERS.length;
+  }
+
+  function normalizeCharacterIndex(value, fallback = 0) {
+    const index = Number(value);
+    return Number.isInteger(index) && index >= 0 && index < ZODIAC_CHARACTERS.length
+      ? index
+      : Math.abs(Number(fallback) || 0) % ZODIAC_CHARACTERS.length;
+  }
+
+  function participantCharacterIndex(participant, fallback) {
+    return normalizeCharacterIndex(participant?.character, fallback ?? legacyCharacterIndex(participant?.id));
+  }
+
+  function participantCharacter(participant, fallback) {
+    const index = participantCharacterIndex(participant, fallback);
+    return { ...ZODIAC_CHARACTERS[index], index, column: index % ZODIAC_COLUMNS, row: Math.floor(index / ZODIAC_COLUMNS) };
+  }
+
+  function zodiacStyle(participant, fallback) {
+    const character = participantCharacter(participant, fallback);
+    const x = character.column * 100 / (ZODIAC_COLUMNS - 1);
+    const y = character.row * 100 / (ZODIAC_ROWS - 1);
+    return `--zodiac-x:${x}%;--zodiac-y:${y}%;--fighter-accent:${character.accent}`;
+  }
+
+  function applyZodiacCharacter(element, participant, roleLabel) {
+    const character = participantCharacter(participant);
+    element.classList.add("zodiac-sprite");
+    element.style.cssText = zodiacStyle(participant);
+    element.dataset.character = character.key;
+    element.setAttribute("aria-label", `${character.label} 캐릭터 · ${roleLabel}`);
+  }
+
+  function nextAvailableCharacter(participants, current = -1, excludedId = "") {
+    const used = new Set(participants
+      .filter((participant) => participant.id !== excludedId)
+      .map((participant, index) => participantCharacterIndex(participant, index)));
+    for (let step = 1; step <= ZODIAC_CHARACTERS.length; step += 1) {
+      const candidate = (current + step + ZODIAC_CHARACTERS.length) % ZODIAC_CHARACTERS.length;
+      if (!used.has(candidate)) return candidate;
+    }
+    return (current + 1 + ZODIAC_CHARACTERS.length) % ZODIAC_CHARACTERS.length;
   }
 
   function participantSprite(participant, slot = "a", state = "standing") {
-    const hue = participantHue(participant?.id);
-    return `<span class="battle-trainer battle-trainer--${slot}" data-state="${state}" style="--fighter-hue:${hue}deg" aria-hidden="true"></span>`;
+    const character = participantCharacter(participant);
+    return `<span class="battle-trainer zodiac-sprite battle-trainer--${slot}" data-state="${state}" data-character="${character.key}" style="${zodiacStyle(participant)}" aria-hidden="true"></span>`;
   }
 
   function encodeState(value) {
@@ -263,15 +313,19 @@
       return;
     }
 
-    refs.participantList.innerHTML = draftParticipants.map((participant, index) => `
-      <article class="participant-card">
-        <span class="participant-card__number">${String(index + 1).padStart(2, "0")}</span>
-        <div class="participant-card__copy">
-          <strong>${escapeName(participant.name)}</strong>
-          <span>${escapeHtml(participant.team || "무소속 플레이어")}</span>
-        </div>
-        <button class="participant-card__remove" type="button" data-remove-id="${participant.id}" aria-label="${escapeName(participant.name)} 삭제">×</button>
-      </article>`).join("");
+    refs.participantList.innerHTML = draftParticipants.map((participant, index) => {
+      const character = participantCharacter(participant, index);
+      return `
+        <article class="participant-card" style="--participant-accent:${character.accent}">
+          <span class="participant-card__number">${String(index + 1).padStart(2, "0")}</span>
+          <button class="participant-card__avatar zodiac-sprite" type="button" data-cycle-character="${participant.id}" data-character="${character.key}" style="${zodiacStyle(participant, index)}" aria-label="${escapeName(participant.name)} 캐릭터 변경 · 현재 ${character.label}" title="캐릭터 변경: ${character.label}"></button>
+          <div class="participant-card__copy">
+            <strong>${escapeName(participant.name)}</strong>
+            <span>${escapeHtml(participant.team || "무소속 플레이어")} · ${character.label}</span>
+          </div>
+          <button class="participant-card__remove" type="button" data-remove-id="${participant.id}" aria-label="${escapeName(participant.name)} 삭제">×</button>
+        </article>`;
+    }).join("");
   }
 
   refs.participantForm.addEventListener("submit", (event) => {
@@ -283,13 +337,26 @@
       setTimeout(() => refs.participantName.classList.remove("invalid"), 500);
       return;
     }
-    draftParticipants.push({ id: uid(), name, team: refs.participantTeam.value.trim() });
+    draftParticipants.push({
+      id: uid(),
+      name,
+      team: refs.participantTeam.value.trim(),
+      character: nextAvailableCharacter(draftParticipants)
+    });
     refs.participantForm.reset();
     renderDraftParticipants();
     refs.participantName.focus();
   });
 
   refs.participantList.addEventListener("click", (event) => {
+    const characterButton = event.target.closest("[data-cycle-character]");
+    if (characterButton) {
+      const participant = draftParticipants.find((item) => item.id === characterButton.dataset.cycleCharacter);
+      if (!participant) return;
+      participant.character = nextAvailableCharacter(draftParticipants, participantCharacterIndex(participant), participant.id);
+      renderDraftParticipants();
+      return;
+    }
     const button = event.target.closest("[data-remove-id]");
     if (!button) return;
     draftParticipants = draftParticipants.filter((participant) => participant.id !== button.dataset.removeId);
@@ -397,7 +464,12 @@
     if (!candidate || typeof candidate !== "object" || !candidate.tournament || !Array.isArray(candidate.participants)) throw new Error("invalid state");
     const participants = candidate.participants
       .filter((participant) => participant && typeof participant.id === "string" && typeof participant.name === "string")
-      .map((participant) => ({ id: participant.id, name: participant.name.slice(0, 30), team: String(participant.team || "").slice(0, 40) }));
+      .map((participant, index) => ({
+        id: participant.id,
+        name: participant.name.slice(0, 30),
+        team: String(participant.team || "").slice(0, 40),
+        character: normalizeCharacterIndex(participant.character, index)
+      }));
     if (participants.length < 2) throw new Error("not enough participants");
     const ids = new Set(participants.map((participant) => participant.id));
     const drawOrder = Array.isArray(candidate.drawOrder) ? candidate.drawOrder.filter((id) => ids.has(id)) : [];
@@ -936,21 +1008,23 @@
       context.drawImage(image, arena.left, arena.top, arena.width, arena.height);
     }
 
-    function drawSprite(sheet, frame, x, feetY, size, options = {}) {
+    function drawZodiacSprite(participant, x, feetY, size, options = {}) {
+      const sheet = characterAssets.zodiac;
       if (!sheet.complete || !sheet.naturalWidth) return;
-      const columns = options.columns || 4;
-      const rows = options.rows || 3;
-      const cellWidth = sheet.naturalWidth / columns;
-      const cellHeight = sheet.naturalHeight / rows;
-      const sourceX = (frame % columns) * cellWidth;
-      const sourceY = Math.floor(frame / columns) * cellHeight;
+      const character = participantCharacter(participant);
+      const cellWidth = sheet.naturalWidth / ZODIAC_COLUMNS;
+      const cellHeight = sheet.naturalHeight / ZODIAC_ROWS;
+      const sourceX = character.column * cellWidth;
+      const sourceY = character.row * cellHeight;
+      const scale = options.scale ?? 1;
       context.save();
-      context.translate(Math.round(x), Math.round(feetY));
+      context.translate(Math.round(x + (options.offsetX || 0)), Math.round(feetY + (options.offsetY || 0)));
       if (options.mirror) context.scale(-1, 1);
-      if (options.filter) context.filter = options.filter;
+      context.rotate((options.rotate || 0) * Math.PI / 180);
+      context.scale(scale * (options.scaleX ?? 1), scale * (options.scaleY ?? 1));
       context.globalAlpha = options.alpha ?? 1;
-      context.shadowColor = options.glow || "rgba(7,9,28,.65)";
-      context.shadowBlur = options.glow ? 24 : 9;
+      context.shadowColor = options.glow || "rgba(7,9,28,.72)";
+      context.shadowBlur = options.glow ? 24 : 10;
       context.drawImage(sheet, sourceX, sourceY, cellWidth, cellHeight, -size / 2, -size, size, size);
       context.restore();
     }
@@ -1051,44 +1125,50 @@
       if (elapsed >= duration) { finish(); return; }
       const state = stateAt(elapsed);
       canvas.dataset.state = state.name;
-      const size = Math.min(260, innerWidth * .27, innerHeight * .38);
+      const size = Math.min(300, innerWidth * .31, innerHeight * .43);
       const lastSize = size * .93;
       let winnerProgress = 0;
       let loserProgress = 0;
-      let winnerFrame = 0;
-      let loserFrame = 0;
-      let fallPosition = null;
+      let winnerPose = {};
+      let loserPose = { mirror: true };
 
-      if (state.name === "WALK_TOGETHER") {
+      if (state.name === "ENTER") {
+        winnerPose = { offsetY: mix(28, 0, easeOut(state.progress)), scale: mix(.88, 1, easeOut(state.progress)), alpha: state.progress };
+        loserPose = { mirror: true, offsetY: mix(28, 0, easeOut(state.progress)), scale: mix(.88, 1, easeOut(state.progress)), alpha: state.progress };
+      } else if (state.name === "WALK_TOGETHER") {
         winnerProgress = state.progress * .56;
         loserProgress = clamp((state.progress - .04) / .96) * .52;
-        winnerFrame = Math.floor(state.local / 105) % 6;
-        loserFrame = (Math.floor(state.local / 128) + 1) % 6;
+        winnerPose = { offsetY: -Math.abs(Math.sin(state.local / 165 * Math.PI)) * 8, rotate: Math.sin(state.local / 165 * Math.PI) * 2.2 };
+        loserPose = { mirror: true, offsetY: -Math.abs(Math.sin((state.local + 90) / 175 * Math.PI)) * 7, rotate: Math.sin((state.local + 90) / 175 * Math.PI) * -2.2 };
       } else if (["LOSER_STUMBLE", "LOSER_FALL", "WINNER_LOOK_BACK"].includes(state.name)) {
         winnerProgress = .56;
         loserProgress = .52;
-        winnerFrame = state.name === "WINNER_LOOK_BACK" ? 6 : Math.floor(elapsed / 115) % 6;
-        loserFrame = state.name === "LOSER_STUMBLE" ? (state.progress < .46 ? 6 : 7) : state.name === "LOSER_FALL" ? (state.progress < .34 ? 8 : state.progress < .7 ? 9 : 10) : 10;
+        winnerPose = state.name === "WINNER_LOOK_BACK" ? { mirror: true, rotate: 5 } : { offsetY: -Math.abs(Math.sin(elapsed / 270 * Math.PI)) * 3 };
+        loserPose = state.name === "LOSER_STUMBLE"
+          ? { mirror: true, rotate: Math.sin(state.local * .07) * (4 + state.progress * 8), offsetY: state.progress * 3 }
+          : state.name === "LOSER_FALL"
+            ? { mirror: true, rotate: mix(0, 68, ease(state.progress)), scaleY: mix(1, .72, ease(state.progress)), offsetY: state.progress * 9 }
+            : { mirror: true, rotate: 62, scaleY: .72, offsetY: 8 };
       } else if (state.name === "WINNER_CLIMB") {
         winnerProgress = .56 + state.progress * .44;
         loserProgress = .52;
-        winnerFrame = Math.floor(state.local / 105) % 6;
-        loserFrame = state.local < 420 ? 10 : 11;
+        winnerPose = { offsetY: -Math.abs(Math.sin(state.local / 150 * Math.PI)) * 8, rotate: Math.sin(state.local / 150 * Math.PI) * 2 };
+        loserPose = { mirror: true, rotate: 62, scaleY: .72, offsetY: 8 + Math.abs(Math.sin(state.local / 260 * Math.PI)) * 3 };
       } else if (state.name === "WINNER_ARRIVE") {
         winnerProgress = 1;
         loserProgress = .52;
-        winnerFrame = state.progress < .5 ? 7 : 8;
-        loserFrame = 11;
+        winnerPose = { offsetY: -Math.sin(state.progress * Math.PI) * 9, scale: 1 + Math.sin(state.progress * Math.PI) * .04 };
+        loserPose = { mirror: true, rotate: 62, scaleY: .72, offsetY: 9 };
       } else if (state.name === "VICTORY") {
         winnerProgress = 1;
         loserProgress = .52;
-        winnerFrame = state.progress < .35 ? 9 : 10;
-        loserFrame = 11;
+        winnerPose = { offsetY: -Math.abs(Math.sin(state.local / 260 * Math.PI)) * 13, scale: 1 + Math.abs(Math.sin(state.local / 260 * Math.PI)) * .07, glow: "rgba(255,216,77,.72)" };
+        loserPose = { mirror: true, rotate: 62, scaleY: .72, offsetY: 8 + Math.abs(Math.sin(state.local / 330 * Math.PI)) * 3 };
       } else if (["LOOK_DOWN", "FINAL_WIDE_SHOT"].includes(state.name)) {
         winnerProgress = 1;
         loserProgress = .52;
-        winnerFrame = 11;
-        loserFrame = 11;
+        winnerPose = { rotate: state.name === "LOOK_DOWN" ? 5 : 0, scale: state.name === "FINAL_WIDE_SHOT" ? 1.04 : 1, glow: "rgba(255,216,77,.6)" };
+        loserPose = { mirror: true, rotate: 62, scaleY: .72, offsetY: 9 + Math.abs(Math.sin(state.local / 360 * Math.PI)) * 2 };
       }
 
       const winnerPos = stairPosition(winnerProgress, "winner", size);
@@ -1108,10 +1188,8 @@
           x: mix(stumbleOrigin.x, fallTarget.x, move),
           y: mix(stumbleOrigin.y, fallTarget.y, move) - bounce
         };
-        fallPosition = loserPos;
       } else if (!["ENTER", "WALK_TOGETHER", "LOSER_STUMBLE"].includes(state.name)) {
         loserPos = fallTarget;
-        fallPosition = loserPos;
       }
 
       let camera = { x: 0, y: 0, zoom: 1, shakeX: 0, shakeY: 0 };
@@ -1154,10 +1232,10 @@
       context.fillStyle = shade;
       context.fillRect(-innerWidth * .2, -innerHeight * .2, innerWidth * 1.4, innerHeight * 1.4);
 
-      drawSprite(characterAssets.trainerCutscene, winnerFrame, winnerPos.x, winnerPos.y, size);
+      drawZodiacSprite(first, winnerPos.x, winnerPos.y, size, winnerPose);
       drawNameplate(first?.name || "", winnerPos.x, nameplateAbove(winnerPos.y, size), "#ffd84d");
 
-      drawSprite(characterAssets.loserCutscene, loserFrame, loserPos.x, loserPos.y, lastSize, { mirror: true, glow: "rgba(255,73,108,.25)" });
+      drawZodiacSprite(last, loserPos.x, loserPos.y, lastSize, { ...loserPose, glow: "rgba(255,73,108,.28)" });
       drawNameplate(last?.name || "", loserPos.x, nameplateAbove(loserPos.y, lastSize), "#ff6b87");
 
       if (state.name === "LOSER_FALL") drawFallEffects(loserPos.x, loserPos.y, state.local);
@@ -1264,6 +1342,13 @@
   }
 
   function renderSharePage(payload) {
+    payload = {
+      ...payload,
+      participants: payload.participants.map((participant, index) => ({
+        ...participant,
+        character: normalizeCharacterIndex(participant.character, index)
+      }))
+    };
     showOnly("result");
     const byId = new Map(payload.participants.map((participant) => [participant.id, participant]));
     const first = byId.get(payload.finalFirst);
@@ -1274,6 +1359,8 @@
     $("#shareTournamentName").textContent = payload.tournament.name;
     $("#sharePrize").textContent = payload.tournament.prize || "없음";
     $("#shareMemo").textContent = payload.tournament.memo || "없음";
+    applyZodiacCharacter($("#resultTrainer"), first, "최종 우승자");
+    applyZodiacCharacter($(".last-place-character"), last, "최종 꼴등");
     const standings = computeStandings(payload);
     $("#shareParticipantList").innerHTML = standings.map((entry, index) => {
       const id = entry.participant.id;
