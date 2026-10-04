@@ -389,11 +389,11 @@ body.result-mode { overflow: hidden; }
 @keyframes slashB { 0% { opacity: 0; transform: translate(-50%, -50%) rotate(-46deg) scaleY(.05); } 25%, 75% { opacity: 1; transform: translate(-50%, -50%) rotate(-46deg) scaleY(1); } 100% { opacity: 0; transform: translate(-50%, -50%) rotate(-46deg) scaleY(1); } }
 @keyframes pixelBurst { 0% { transform: translate(-50%, -50%) rotate(45deg) scale(0); opacity: 0; } 45% { transform: translate(-50%, -50%) rotate(45deg) scale(1); opacity: 1; } 100% { transform: translate(-50%, -50%) rotate(135deg) scale(4.5); opacity: 0; } }
 @keyframes lastPlaceBowFrames {
-  0%, 15%, 100% { background-position: 0% 100%; transform: translateY(0); }
-  18%, 31% { background-position: 33.333% 100%; transform: translateY(0); }
-  34%, 68% { background-position: 66.667% 100%; transform: translateY(0); }
-  72%, 86% { background-position: 100% 100%; transform: translateY(0); }
-  89%, 99% { background-position: 0% 100%; transform: translateY(0); }
+  0%, 15%, 100% { background-position: 0% 100%; transform: translateY(0) scaleX(-1); }
+  18%, 31% { background-position: 33.333% 100%; transform: translateY(0) scaleX(-1); }
+  34%, 68% { background-position: 66.667% 100%; transform: translateY(0) scaleX(-1); }
+  72%, 86% { background-position: 100% 100%; transform: translateY(0) scaleX(-1); }
+  89%, 99% { background-position: 0% 100%; transform: translateY(0) scaleX(-1); }
 }
 @keyframes lastPlaceShadow { 0%,14%,100% { opacity: .42; transform: translateX(-50%) scaleX(.82); } 42%,68% { opacity: .68; transform: translateX(-50%) scaleX(1.08); } }
 @keyframes lastPlaceEnter { from { opacity: 0; transform: translateY(70px); } to { opacity: 1; transform: translateY(0); } }
