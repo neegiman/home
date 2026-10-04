@@ -58,19 +58,28 @@
 
   const characterAssets = {
     clown: new Image(),
+    clownJuggle: new Image(),
     trainer: new Image(),
+    trainerCutscene: new Image(),
     lastPlace: new Image(),
+    loserCutscene: new Image(),
     drawStage: new Image(),
     championArena: new Image()
   };
   characterAssets.clown.decoding = "async";
+  characterAssets.clownJuggle.decoding = "async";
   characterAssets.trainer.decoding = "async";
+  characterAssets.trainerCutscene.decoding = "async";
   characterAssets.lastPlace.decoding = "async";
+  characterAssets.loserCutscene.decoding = "async";
   characterAssets.drawStage.decoding = "async";
   characterAssets.championArena.decoding = "async";
   characterAssets.clown.src = "assets/characters/clown-spritesheet.png";
+  characterAssets.clownJuggle.src = "assets/characters/clown-juggle-8f.png";
   characterAssets.trainer.src = "assets/characters/trainer-spritesheet.png";
+  characterAssets.trainerCutscene.src = "assets/characters/trainer-cutscene-12f.png";
   characterAssets.lastPlace.src = "assets/characters/last-place-bow-spritesheet.png";
+  characterAssets.loserCutscene.src = "assets/characters/loser-cutscene-12f.png";
   characterAssets.drawStage.src = "assets/backgrounds/draw-stage.png";
   characterAssets.championArena.src = "assets/backgrounds/champion-arena.png";
 
@@ -849,7 +858,20 @@
     const first = participantById(firstId);
     const last = participantById(lastId);
     const reducedMotion = matchMedia("(prefers-reduced-motion: reduce)").matches;
-    const duration = reducedMotion ? 1300 : 8200;
+    const sequence = [
+      { name: "ENTER", duration: 500 },
+      { name: "WALK_TOGETHER", duration: 2600 },
+      { name: "LOSER_STUMBLE", duration: 600 },
+      { name: "LOSER_FALL", duration: 750 },
+      { name: "WINNER_LOOK_BACK", duration: 450 },
+      { name: "WINNER_CLIMB", duration: 1700 },
+      { name: "WINNER_ARRIVE", duration: 500 },
+      { name: "VICTORY", duration: 900 },
+      { name: "LOOK_DOWN", duration: 650 },
+      { name: "FINAL_WIDE_SHOT", duration: 1000 }
+    ];
+    const duration = sequence.reduce((sum, state) => sum + state.duration, 0);
+    const playbackRate = reducedMotion ? duration / 1300 : 1;
     let startedAt = 0;
     let completed = false;
     let lastCaption = "";
@@ -866,7 +888,21 @@
 
     function clamp(value, min = 0, max = 1) { return Math.max(min, Math.min(max, value)); }
     function ease(value) { const t = clamp(value); return t * t * (3 - 2 * t); }
+    function easeOut(value) { const t = clamp(value); return 1 - (1 - t) * (1 - t); }
     function mix(from, to, value) { return from + (to - from) * value; }
+
+    function stateAt(elapsed) {
+      let cursor = 0;
+      for (const state of sequence) {
+        if (elapsed < cursor + state.duration) {
+          const local = elapsed - cursor;
+          return { ...state, local, progress: clamp(local / state.duration), start: cursor };
+        }
+        cursor += state.duration;
+      }
+      const state = sequence[sequence.length - 1];
+      return { ...state, local: state.duration, progress: 1, start: duration - state.duration };
+    }
 
     function drawCover(image) {
       if (!image.complete || !image.naturalWidth) {
@@ -874,7 +910,7 @@
         context.fillRect(0, 0, innerWidth, innerHeight);
         return;
       }
-      const scale = Math.max(innerWidth / image.naturalWidth, innerHeight / image.naturalHeight);
+      const scale = Math.max(innerWidth / image.naturalWidth, innerHeight / image.naturalHeight) * 1.14;
       const width = image.naturalWidth * scale;
       const height = image.naturalHeight * scale;
       context.drawImage(image, (innerWidth - width) / 2, (innerHeight - height) / 2, width, height);
@@ -882,10 +918,12 @@
 
     function drawSprite(sheet, frame, x, feetY, size, options = {}) {
       if (!sheet.complete || !sheet.naturalWidth) return;
-      const cellWidth = sheet.naturalWidth / 2;
-      const cellHeight = sheet.naturalHeight / 2;
-      const sourceX = (frame % 2) * cellWidth;
-      const sourceY = Math.floor(frame / 2) * cellHeight;
+      const columns = options.columns || 4;
+      const rows = options.rows || 3;
+      const cellWidth = sheet.naturalWidth / columns;
+      const cellHeight = sheet.naturalHeight / rows;
+      const sourceX = (frame % columns) * cellWidth;
+      const sourceY = Math.floor(frame / columns) * cellHeight;
       context.save();
       context.translate(Math.round(x), Math.round(feetY));
       if (options.mirror) context.scale(-1, 1);
@@ -895,6 +933,57 @@
       context.shadowBlur = options.glow ? 24 : 9;
       context.drawImage(sheet, sourceX, sourceY, cellWidth, cellHeight, -size / 2, -size, size, size);
       context.restore();
+    }
+
+    function stairPosition(progress, lane, size) {
+      const steps = 8;
+      const clamped = clamp(progress);
+      const scaled = Math.min(steps - .001, clamped * steps);
+      const stepIndex = Math.floor(scaled);
+      const local = scaled - stepIndex;
+      const startX = innerWidth * (lane === "winner" ? .38 : .57);
+      const finishX = innerWidth * (lane === "winner" ? .50 : .60);
+      const startY = innerHeight * .92;
+      const finishY = innerHeight * .61;
+      const stepWidth = (finishX - startX) / steps;
+      const stepHeight = (startY - finishY) / steps;
+      const horizontal = easeOut(clamp(local / .6));
+      const rise = local < .42 ? 0 : ease((local - .42) / .58);
+      const lift = Math.sin(Math.PI * local) * Math.min(8, size * .035);
+      return {
+        x: startX + stepIndex * stepWidth + stepWidth * horizontal,
+        y: startY - stepIndex * stepHeight - stepHeight * rise - lift,
+        stepIndex,
+        local
+      };
+    }
+
+    function drawFallEffects(x, y, age) {
+      const life = clamp(age / 720);
+      if (life >= 1) return;
+      for (let index = 0; index < 14; index += 1) {
+        const angle = -.25 - index * .18;
+        const speed = 20 + index % 5 * 9;
+        const px = x + Math.cos(angle) * speed * life + (index % 2 ? 1 : -1) * 12 * life;
+        const py = y - 8 + Math.sin(angle) * speed * life + 58 * life * life;
+        context.globalAlpha = 1 - life;
+        context.fillStyle = index % 3 === 0 ? "#ffd84d" : index % 3 === 1 ? "#ff718d" : "#fff1c2";
+        context.fillRect(Math.round(px), Math.round(py), index % 4 === 0 ? 7 : 4, index % 4 === 0 ? 7 : 4);
+      }
+      context.globalAlpha = 1;
+    }
+
+    function drawVictoryEffects(x, y, size, age) {
+      for (let index = 0; index < 20; index += 1) {
+        const angle = index * .82 + age * .0015;
+        const radius = 62 + (index % 5) * 22 + Math.sin(age * .004 + index) * 8;
+        const px = x + Math.cos(angle) * radius;
+        const py = y - size * .62 + Math.sin(angle) * radius * .52;
+        context.globalAlpha = .55 + Math.sin(age * .01 + index) * .35;
+        context.fillStyle = ["#ffd84d", "#fff5cf", "#48c7ff"][index % 3];
+        context.fillRect(Math.round(px), Math.round(py), 4 + index % 2 * 3, 4 + index % 2 * 3);
+      }
+      context.globalAlpha = 1;
     }
 
     function drawNameplate(name, x, y, tone) {
@@ -935,60 +1024,125 @@
     $("#skipFinalStair").onclick = finish;
 
     function frame(now) {
-      const elapsed = reducedMotion ? (now - startedAt) * 7 : now - startedAt;
+      const elapsed = (now - startedAt) * playbackRate;
       if (elapsed >= duration) { finish(); return; }
-      drawCover(characterAssets.championArena);
-      const shade = context.createLinearGradient(0, 0, 0, innerHeight);
-      shade.addColorStop(0, "rgba(10,12,42,.16)");
-      shade.addColorStop(1, "rgba(8,5,22,.45)");
-      context.fillStyle = shade;
-      context.fillRect(0, 0, innerWidth, innerHeight);
-
+      const state = stateAt(elapsed);
+      canvas.dataset.state = state.name;
       const size = Math.min(260, innerWidth * .27, innerHeight * .38);
-      const climb = ease((elapsed - 650) / 3000);
-      const winnerContinue = ease((elapsed - 3400) / 2100);
-      const winnerX = mix(innerWidth * .42, innerWidth * .5, winnerContinue);
-      const winnerY = mix(innerHeight * .91, innerHeight * .69, Math.max(climb, winnerContinue));
-      const lastX = mix(innerWidth * .58, innerWidth * .64, climb);
-      const lastY = mix(innerHeight * .91, innerHeight * .73, climb);
-      const winnerFrame = elapsed > 5700 ? (elapsed % 1200 < 600 ? 3 : 2) : 1;
+      const lastSize = size * .93;
+      let winnerProgress = 0;
+      let loserProgress = 0;
+      let winnerFrame = 0;
+      let loserFrame = 0;
+      let fallPosition = null;
+      let winnerGlow = "rgba(72,199,255,.35)";
 
-      if (elapsed < 700) setCaption("최종 1위와 최하위의 운명이 결정되었습니다");
-      else if (elapsed < 3200) setCaption("두 참가자가 마지막 계단을 오릅니다");
-      else if (elapsed < 4550) setCaption(`${honorName(last?.name || "")}이 발을 헛디뎠습니다!`);
-      else if (elapsed < 5900) setCaption(`${honorName(first?.name || "")}은 정상으로 향합니다`);
-      else setCaption(`${honorName(first?.name || "")} 최종 1위!`);
-
-      drawSprite(characterAssets.trainer, winnerFrame, winnerX, winnerY, size, { mirror: false, glow: elapsed > 5600 ? "#ffd84d" : "rgba(72,199,255,.35)" });
-      drawNameplate(first?.name || "", winnerX, nameplateAbove(winnerY, size), "#ffd84d");
-
-      if (elapsed < 3300) {
-        const lastSize = size * .94;
-        drawSprite(characterAssets.trainer, 1, lastX, lastY, lastSize, { mirror: true, filter: "hue-rotate(-18deg) saturate(.86)" });
-        drawNameplate(last?.name || "", lastX, nameplateAbove(lastY, lastSize), "#ff6b87");
-      } else {
-        const fallAge = elapsed - 3300;
-        const fallFrame = fallAge < 330 ? 0 : fallAge < 680 ? 1 : fallAge < 1080 ? 2 : 3;
-        const fallX = innerWidth * .68 + Math.sin(fallAge * .025) * (fallAge < 550 ? 8 : 0);
-        const fallY = innerHeight * .82 + Math.min(16, fallAge * .016);
-        const fallenSize = size * .82;
-        drawSprite(characterAssets.lastPlace, fallFrame, fallX, fallY, fallenSize, { glow: "rgba(255,73,108,.25)" });
-        drawNameplate(last?.name || "", fallX, nameplateAbove(fallY, fallenSize), "#ff6b87");
-        if (fallAge < 500) {
-          context.fillStyle = `rgba(255,245,207,${.45 * (1 - fallAge / 500)})`;
-          context.fillRect(0, 0, innerWidth, innerHeight);
-        }
+      if (state.name === "WALK_TOGETHER") {
+        winnerProgress = state.progress * .56;
+        loserProgress = clamp((state.progress - .04) / .96) * .52;
+        winnerFrame = Math.floor(state.local / 105) % 6;
+        loserFrame = (Math.floor(state.local / 128) + 1) % 6;
+      } else if (["LOSER_STUMBLE", "LOSER_FALL", "WINNER_LOOK_BACK"].includes(state.name)) {
+        winnerProgress = .56;
+        loserProgress = .52;
+        winnerFrame = state.name === "WINNER_LOOK_BACK" ? 6 : Math.floor(elapsed / 115) % 6;
+        loserFrame = state.name === "LOSER_STUMBLE" ? (state.progress < .46 ? 6 : 7) : state.name === "LOSER_FALL" ? (state.progress < .34 ? 8 : state.progress < .7 ? 9 : 10) : 10;
+      } else if (state.name === "WINNER_CLIMB") {
+        winnerProgress = .56 + state.progress * .44;
+        loserProgress = .52;
+        winnerFrame = Math.floor(state.local / 105) % 6;
+        loserFrame = state.local < 420 ? 10 : 11;
+      } else if (state.name === "WINNER_ARRIVE") {
+        winnerProgress = 1;
+        loserProgress = .52;
+        winnerFrame = state.progress < .5 ? 7 : 8;
+        loserFrame = 11;
+      } else if (state.name === "VICTORY") {
+        winnerProgress = 1;
+        loserProgress = .52;
+        winnerFrame = state.progress < .35 ? 9 : 10;
+        loserFrame = 11;
+        winnerGlow = "#ffd84d";
+      } else if (["LOOK_DOWN", "FINAL_WIDE_SHOT"].includes(state.name)) {
+        winnerProgress = 1;
+        loserProgress = .52;
+        winnerFrame = 11;
+        loserFrame = 11;
+        winnerGlow = "#ffd84d";
       }
 
-      if (elapsed > 5700) {
-        for (let index = 0; index < 18; index += 1) {
-          const angle = index * .78 + elapsed * .002;
-          const radius = 80 + (index % 4) * 24;
-          const x = winnerX + Math.cos(angle) * radius;
-          const y = winnerY - size * .58 + Math.sin(angle) * radius * .55;
-          context.fillStyle = ["#ffd84d", "#fff5cf", "#48c7ff"][index % 3];
-          context.fillRect(Math.round(x), Math.round(y), 5 + index % 2 * 3, 5 + index % 2 * 3);
-        }
+      const winnerPos = stairPosition(winnerProgress, "winner", size);
+      let loserPos = stairPosition(loserProgress, "loser", lastSize);
+      const stumbleOrigin = stairPosition(.52, "loser", lastSize);
+      if (state.name === "LOSER_STUMBLE") {
+        loserPos = { x: stumbleOrigin.x + Math.sin(state.local * .065) * (2 + state.progress * 5), y: stumbleOrigin.y + state.progress * 3 };
+      } else if (state.name === "LOSER_FALL") {
+        const move = ease(state.progress);
+        const bounce = state.progress > .72 ? Math.sin((state.progress - .72) / .28 * Math.PI) * 10 : 0;
+        loserPos = {
+          x: mix(stumbleOrigin.x, innerWidth * .69, move),
+          y: mix(stumbleOrigin.y, innerHeight * .85, move) - bounce
+        };
+        fallPosition = loserPos;
+      } else if (!["ENTER", "WALK_TOGETHER", "LOSER_STUMBLE"].includes(state.name)) {
+        loserPos = { x: innerWidth * .69, y: innerHeight * .85 };
+        fallPosition = loserPos;
+      }
+
+      let camera = { x: 0, y: 0, zoom: .94, shakeX: 0, shakeY: 0 };
+      if (state.name === "ENTER") camera.zoom = mix(.88, .96, ease(state.progress));
+      if (state.name === "WALK_TOGETHER") camera = { ...camera, zoom: mix(.96, 1.06, state.progress), y: -innerHeight * .045 * state.progress };
+      if (state.name === "LOSER_STUMBLE") camera = { ...camera, x: innerWidth * .035, y: -innerHeight * .025, zoom: 1.07 };
+      if (state.name === "LOSER_FALL") {
+        const shakeLife = Math.max(0, 1 - Math.abs(state.local - 430) / 180);
+        camera = { ...camera, x: innerWidth * .06, y: innerHeight * .015, zoom: 1.045, shakeX: Math.sin(state.local * .13) * 3 * shakeLife, shakeY: Math.cos(state.local * .16) * 2 * shakeLife };
+      }
+      if (state.name === "WINNER_LOOK_BACK") camera = { ...camera, x: innerWidth * .025, y: -innerHeight * .015, zoom: 1.035 };
+      if (state.name === "WINNER_CLIMB") camera = { ...camera, x: mix(innerWidth * .02, 0, state.progress), y: mix(-innerHeight * .02, -innerHeight * .095, state.progress), zoom: mix(1.04, 1.1, state.progress) };
+      if (state.name === "WINNER_ARRIVE") camera = { ...camera, y: -innerHeight * .09, zoom: mix(1.1, 1.13, ease(state.progress)) };
+      if (state.name === "VICTORY") camera = { ...camera, y: -innerHeight * .085, zoom: mix(1.13, 1.17, ease(state.progress)) };
+      if (state.name === "LOOK_DOWN") camera = { ...camera, y: mix(-innerHeight * .085, -innerHeight * .04, state.progress), zoom: mix(1.15, 1.04, state.progress) };
+      if (state.name === "FINAL_WIDE_SHOT") camera = { ...camera, y: mix(-innerHeight * .04, 0, state.progress), zoom: mix(1.04, .88, ease(state.progress)) };
+
+      const captions = {
+        ENTER: "최종 1위와 최하위의 운명이 결정되었습니다",
+        WALK_TOGETHER: "두 참가자가 계단을 한 칸씩 오릅니다",
+        LOSER_STUMBLE: `${honorName(last?.name || "")}이 발을 헛디뎠습니다!`,
+        LOSER_FALL: `${honorName(last?.name || "")}이 균형을 잃었습니다`,
+        WINNER_LOOK_BACK: `${honorName(first?.name || "")}이 잠시 뒤를 돌아봅니다`,
+        WINNER_CLIMB: `${honorName(first?.name || "")}은 다시 정상으로 향합니다`,
+        WINNER_ARRIVE: "마지막 계단에 도착했습니다",
+        VICTORY: `${honorName(first?.name || "")} 최종 1위!`,
+        LOOK_DOWN: "우승자가 아래의 참가자를 돌아봅니다",
+        FINAL_WIDE_SHOT: "토너먼트의 모든 순위가 결정되었습니다"
+      };
+      setCaption(captions[state.name]);
+
+      context.save();
+      context.translate(innerWidth / 2 + camera.shakeX, innerHeight / 2 + camera.shakeY);
+      context.scale(camera.zoom, camera.zoom);
+      context.translate(-innerWidth / 2 - camera.x, -innerHeight / 2 - camera.y);
+      drawCover(characterAssets.championArena);
+      const shade = context.createLinearGradient(0, 0, 0, innerHeight);
+      shade.addColorStop(0, "rgba(10,12,42,.12)");
+      shade.addColorStop(1, "rgba(8,5,22,.42)");
+      context.fillStyle = shade;
+      context.fillRect(-innerWidth * .2, -innerHeight * .2, innerWidth * 1.4, innerHeight * 1.4);
+
+      drawSprite(characterAssets.trainerCutscene, winnerFrame, winnerPos.x, winnerPos.y, size, { glow: winnerGlow });
+      drawNameplate(first?.name || "", winnerPos.x, nameplateAbove(winnerPos.y, size), "#ffd84d");
+
+      drawSprite(characterAssets.loserCutscene, loserFrame, loserPos.x, loserPos.y, lastSize, { mirror: true, glow: "rgba(255,73,108,.25)" });
+      const loserLabelSize = fallPosition ? lastSize * .7 : lastSize;
+      drawNameplate(last?.name || "", loserPos.x, nameplateAbove(loserPos.y, loserLabelSize), "#ff6b87");
+
+      if (state.name === "LOSER_FALL") drawFallEffects(loserPos.x, loserPos.y, state.local);
+      if (["VICTORY", "LOOK_DOWN", "FINAL_WIDE_SHOT"].includes(state.name)) drawVictoryEffects(winnerPos.x, winnerPos.y, size, state.local);
+      context.restore();
+
+      if (state.name === "LOSER_FALL" && state.local > 390 && state.local < 520) {
+        context.fillStyle = `rgba(255,245,207,${.18 * (1 - (state.local - 390) / 130)})`;
+        context.fillRect(0, 0, innerWidth, innerHeight);
       }
       stairAnimationFrame = requestAnimationFrame(frame);
     }
@@ -1193,19 +1347,23 @@
     const canvas = $("#tournamentAnimation");
     const context = canvas.getContext("2d");
     const reducedMotion = matchMedia("(prefers-reduced-motion: reduce)").matches;
-    const duration = reducedMotion ? 1100 : 7600;
-    const drawTiming = {
-      idleEnd: 450,
-      wobbleStart: 2850,
-      dropStart: 3400,
-      impactAt: 4100,
-      revealAt: 4500,
-      celebrationEnd: 5200
-    };
+    const sequence = [
+      { name: "ENTER", duration: 600 },
+      { name: "JUGGLE", duration: 2500 },
+      { name: "BALL_UNSTABLE", duration: 850 },
+      { name: "BALL_DROP", duration: 950 },
+      { name: "BALL_IMPACT", duration: 450 },
+      { name: "NAME_REVEAL", duration: 1150 },
+      { name: "CELEBRATE", duration: 850 },
+      { name: "TRANSITION", duration: 900 }
+    ];
+    const duration = sequence.reduce((sum, state) => sum + state.duration, 0);
+    const playbackRate = reducedMotion ? duration / 1100 : 1;
     const ballColors = ["#ff496c", "#48c7ff", "#ffd84d"];
     let startedAt = 0;
     let particles = [];
     let exploded = false;
+    let previousTime = 0;
 
     function resize() {
       const dpr = Math.min(window.devicePixelRatio || 1, 2);
@@ -1224,6 +1382,27 @@
       context.fillRect(Math.round(x), Math.round(y), Math.round(width), Math.round(height));
     }
 
+    function clamp(value, min = 0, max = 1) { return Math.max(min, Math.min(max, value)); }
+    function ease(value) { const t = clamp(value); return t * t * (3 - 2 * t); }
+    function mix(from, to, value) { return from + (to - from) * value; }
+
+    function stateAt(elapsed) {
+      let cursor = 0;
+      for (const state of sequence) {
+        if (elapsed < cursor + state.duration) {
+          const local = elapsed - cursor;
+          return { ...state, local, progress: clamp(local / state.duration), start: cursor };
+        }
+        cursor += state.duration;
+      }
+      const state = sequence[sequence.length - 1];
+      return { ...state, local: state.duration, progress: 1, start: duration - state.duration };
+    }
+
+    function stateDuration(name) {
+      return sequence.find((state) => state.name === name)?.duration || 0;
+    }
+
     function centerText(text, y, size, color = "#fff5cf") {
       context.font = `900 ${Math.max(12, size)}px Pretendard, Malgun Gothic, sans-serif`;
       context.textAlign = "center";
@@ -1239,12 +1418,11 @@
       context.fillText(text, innerWidth / 2, y);
     }
 
-    function drawStage(time, shake) {
+    function drawStage(time) {
       context.save();
-      context.translate(shake, 0);
       const stage = characterAssets.drawStage;
       if (stage.complete && stage.naturalWidth) {
-        const scale = Math.max(innerWidth / stage.naturalWidth, innerHeight / stage.naturalHeight) * (time > 5800 ? 1.035 : 1);
+        const scale = Math.max(innerWidth / stage.naturalWidth, innerHeight / stage.naturalHeight) * 1.13;
         const width = stage.naturalWidth * scale;
         const height = stage.naturalHeight * scale;
         context.drawImage(stage, (innerWidth - width) / 2, (innerHeight - height) / 2, width, height);
@@ -1269,26 +1447,33 @@
 
     function clownLayout() {
       const size = Math.min(430, innerWidth * .52, innerHeight * .58);
-      return { size, stageY: innerHeight * .77 };
+      return { size, stageY: innerHeight * .79 };
     }
 
-    function drawClownSprite(frameIndex, cx, time, motion = "still") {
-      const sprite = characterAssets.clown;
+    function drawSheetFrame(sprite, frameIndex, columns, rows, cx, feetY, size, options = {}) {
       if (!sprite.complete || !sprite.naturalWidth) return;
-      const cellWidth = sprite.naturalWidth / 2;
-      const cellHeight = sprite.naturalHeight / 2;
-      const { size, stageY } = clownLayout();
-      const sway = motion === "juggling" ? Math.sin(time * .006) * .018 : 0;
-      const shake = frameIndex === 2 ? Math.sin(time * .035) * 4 : 0;
-      const sx = (frameIndex % 2) * cellWidth;
-      const sy = Math.floor(frameIndex / 2) * cellHeight;
+      const cellWidth = sprite.naturalWidth / columns;
+      const cellHeight = sprite.naturalHeight / rows;
+      const sx = (frameIndex % columns) * cellWidth;
+      const sy = Math.floor(frameIndex / columns) * cellHeight;
       context.save();
-      context.translate(cx + shake, stageY);
-      context.rotate(sway);
-      context.shadowColor = frameIndex === 3 ? "#ffd84d" : "rgba(72,199,255,.38)";
-      context.shadowBlur = frameIndex === 3 ? 28 : 10;
+      context.translate(Math.round(cx), Math.round(feetY + (options.offsetY || 0)));
+      if (options.mirror) context.scale(-1, 1);
+      context.globalAlpha = options.alpha ?? 1;
+      context.shadowColor = options.glow || "rgba(72,199,255,.38)";
+      context.shadowBlur = options.glow ? 25 : 10;
       context.drawImage(sprite, sx, sy, cellWidth, cellHeight, -size / 2, -size * .91, size, size);
       context.restore();
+    }
+
+    function drawJuggleClown(frameIndex, cx, contactPulse = 0) {
+      const { size, stageY } = clownLayout();
+      drawSheetFrame(characterAssets.clownJuggle, frameIndex, 4, 2, cx, stageY, size, { offsetY: contactPulse * 2 });
+    }
+
+    function drawReactionClown(frameIndex, cx, options = {}) {
+      const { size, stageY } = clownLayout();
+      drawSheetFrame(characterAssets.clown, frameIndex, 2, 2, cx, stageY, size, options);
     }
 
     function drawBall(x, y, color, options = {}) {
@@ -1331,66 +1516,114 @@
       context.restore();
     }
 
-    function orbitPoint(index, time, cx) {
+    function handPoints(cx) {
       const { size, stageY } = clownLayout();
-      const orbitCenterY = stageY - size * .77;
-      const radiusX = Math.min(145, Math.max(62, size * .32));
-      const radiusY = Math.min(62, Math.max(28, size * .14));
-      // Phase the red ball to detach on the clown's upper-right side instead of crossing the face.
-      const angle = -Math.PI / 2 - 2 + (time - drawTiming.idleEnd) * .00315 + index * Math.PI * 2 / 3;
       return {
-        x: cx + Math.cos(angle) * radiusX,
-        y: orbitCenterY + Math.sin(angle) * radiusY,
-        angle
+        left: { x: cx - size * .23, y: stageY - size * .49 },
+        right: { x: cx + size * .23, y: stageY - size * .49 },
+        arcHeight: Math.min(190, size * .43)
       };
     }
 
-    function drawJugglingBalls(time, cx) {
-      if (time < drawTiming.idleEnd || time >= drawTiming.revealAt) return;
-      const floorY = innerHeight * .75 - 14;
+    function cascadePoint(index, time, cx) {
+      const hands = handPoints(cx);
+      const flightDuration = 860;
+      const phase = index / 3;
+      const flight = time / flightDuration + phase;
+      const throwIndex = Math.floor(flight);
+      const progress = flight - throwIndex;
+      const leftToRight = throwIndex % 2 === 0;
+      const from = leftToRight ? hands.left : hands.right;
+      const to = leftToRight ? hands.right : hands.left;
+      return {
+        x: mix(from.x, to.x, progress),
+        y: mix(from.y, to.y, progress) - hands.arcHeight * 4 * progress * (1 - progress),
+        progress,
+        angle: (throwIndex + progress) * Math.PI * 1.15,
+        from,
+        to
+      };
+    }
+
+    function unstablePoint(time, cx) {
+      const baseTime = stateDuration("JUGGLE") + time;
+      const point = cascadePoint(0, baseTime, cx);
+      const progress = clamp(time / stateDuration("BALL_UNSTABLE"));
+      point.x += Math.sin(time * .085) * (2 + progress * 9) + progress * 16;
+      point.y += Math.cos(time * .07) * (1 + progress * 4) + progress * progress * 15;
+      return point;
+    }
+
+    function dropRelease(cx) {
+      const { size } = clownLayout();
+      const point = unstablePoint(stateDuration("BALL_UNSTABLE"), cx);
+      point.x = Math.max(point.x, cx + size * .25);
+      return point;
+    }
+
+    function drawCatchSparkle(point) {
+      const contact = Math.min(point.progress, 1 - point.progress);
+      if (contact > .075) return 0;
+      const strength = 1 - contact / .075;
+      for (let index = 0; index < 4; index += 1) {
+        const angle = index * Math.PI / 2;
+        const radius = 8 + strength * 7;
+        context.globalAlpha = strength;
+        rect(point.x + Math.cos(angle) * radius - 2, point.y + Math.sin(angle) * radius - 2, 4, 4, index % 2 ? "#fff5cf" : "#ffd84d");
+      }
+      context.globalAlpha = 1;
+      return strength;
+    }
+
+    function drawJugglingBalls(state, cx) {
+      const floorY = innerHeight * .76 - 12;
+      const juggleBase = state.name === "JUGGLE" ? state.local : stateDuration("JUGGLE") + state.local;
+      let strongestContact = 0;
 
       for (let index = 2; index >= 0; index -= 1) {
-        let point = orbitPoint(index, time, cx);
+        let point = cascadePoint(index, juggleBase, cx);
         let scaleX = 1;
         let scaleY = 1;
+        let alpha = 1;
 
-        if (index === 0 && time >= drawTiming.dropStart) {
-          const release = orbitPoint(index, drawTiming.dropStart, cx);
-          if (time < drawTiming.impactAt) {
-            const fall = Math.min(1, (time - drawTiming.dropStart) / (drawTiming.impactAt - drawTiming.dropStart));
+        if (index === 0 && state.name === "BALL_UNSTABLE") point = unstablePoint(state.local, cx);
+        if (index === 0 && ["BALL_DROP", "BALL_IMPACT"].includes(state.name)) {
+          const release = dropRelease(cx);
+          if (state.name === "BALL_DROP") {
+            const fall = ease(state.progress);
             point = {
-              x: release.x + Math.sin(time * .045) * 5 * (1 - fall),
-              y: release.y + (floorY - release.y) * fall * fall
+              x: release.x + state.progress * 18,
+              y: release.y + (floorY - release.y) * state.progress * state.progress,
+              angle: release.angle + state.local * .015
             };
+            for (let trailIndex = 1; trailIndex <= 3; trailIndex += 1) {
+              const past = clamp(state.progress - trailIndex * .06);
+              const tx = release.x + past * 18;
+              const ty = release.y + (floorY - release.y) * past * past;
+              drawBall(tx, ty, ballColors[index], { glow: false, spin: point.angle, alpha: .18 / trailIndex, scaleX: .68, scaleY: .68 });
+            }
           } else {
-            const afterImpact = time - drawTiming.impactAt;
-            const bounceProgress = Math.min(1, afterImpact / 330);
-            point = {
-              x: release.x + afterImpact * .025,
-              y: floorY - Math.sin(bounceProgress * Math.PI) * 28 * (1 - bounceProgress)
-            };
-            const impactSquash = Math.max(0, 1 - afterImpact / 120);
-            scaleX = 1 + impactSquash * .38;
-            scaleY = 1 - impactSquash * .32;
+            const bounce = Math.sin(state.progress * Math.PI) * 27 * (1 - state.progress);
+            point = { x: release.x + 18 + state.progress * 8, y: floorY - bounce, angle: release.angle + state.local * .018 };
+            const squash = Math.max(0, 1 - state.local / 120);
+            scaleX = 1 + squash * .38;
+            scaleY = 1 - squash * .34;
           }
-        } else if (index === 0 && time >= drawTiming.wobbleStart) {
-          const wobble = (time - drawTiming.wobbleStart) / (drawTiming.dropStart - drawTiming.wobbleStart);
-          point.x += Math.sin(time * .075) * (2 + wobble * 8);
-          point.y += Math.cos(time * .09) * (1 + wobble * 4);
+        } else if (["BALL_DROP", "BALL_IMPACT"].includes(state.name)) {
+          point = cascadePoint(index, stateDuration("JUGGLE") + stateDuration("BALL_UNSTABLE") + state.local, cx);
+          alpha = state.name === "BALL_IMPACT" ? 1 - state.progress * .75 : 1;
         }
 
-        if (!(index === 0 && time >= drawTiming.dropStart)) {
-          const trail = orbitPoint(index, time - 55, cx);
-          context.globalAlpha = .48;
-          rect(trail.x - 3, trail.y - 3, 6, 6, ballColors[index]);
+        if (["JUGGLE", "BALL_UNSTABLE"].includes(state.name) || index !== 0) {
+          const trailPoint = index === 0 && state.name === "BALL_UNSTABLE" ? unstablePoint(Math.max(0, state.local - 45), cx) : cascadePoint(index, Math.max(0, juggleBase - 45), cx);
+          context.globalAlpha = .35 * alpha;
+          rect(trailPoint.x - 3, trailPoint.y - 3, 6, 6, ballColors[index]);
           context.globalAlpha = 1;
         }
-        drawBall(point.x, point.y, ballColors[index], {
-          spin: point.angle ?? time * .012 + index,
-          scaleX,
-          scaleY
-        });
+        drawBall(point.x, point.y, ballColors[index], { spin: point.angle, scaleX, scaleY, alpha });
+        if (state.name === "JUGGLE") strongestContact = Math.max(strongestContact, drawCatchSparkle(point));
       }
+      return strongestContact;
     }
 
     function finish() {
@@ -1401,49 +1634,89 @@
     $("#skipAnimation").onclick = finish;
 
     function frame(now) {
-      const elapsed = reducedMotion ? (now - startedAt) * 7 : now - startedAt;
+      const elapsed = (now - startedAt) * playbackRate;
       if (elapsed >= duration) { finish(); return; }
-      let shake = 0;
-      if (elapsed > drawTiming.impactAt - 50 && elapsed < drawTiming.revealAt + 50) shake = Math.round(Math.sin(elapsed * .12) * 8);
-      drawStage(elapsed, shake);
+      const delta = Math.min(34, Math.max(0, elapsed - previousTime));
+      previousTime = elapsed;
+      const state = stateAt(elapsed);
+      canvas.dataset.state = state.name;
       const cx = innerWidth / 2;
 
-      if (elapsed < drawTiming.celebrationEnd) {
-        const clownFrame = elapsed < drawTiming.dropStart ? 0 : elapsed < drawTiming.revealAt ? 2 : 3;
-        const clownMotion = elapsed >= drawTiming.idleEnd && elapsed < drawTiming.dropStart ? "juggling" : "still";
-        drawClownSprite(clownFrame, cx, elapsed, clownMotion);
-        drawJugglingBalls(elapsed, cx);
+      let camera = { x: 0, y: 0, zoom: .92, shakeX: 0, shakeY: 0 };
+      if (state.name === "ENTER") camera.zoom = mix(.9, .98, ease(state.progress));
+      if (state.name === "JUGGLE") camera.zoom = mix(.98, 1.08, ease(state.progress));
+      if (state.name === "BALL_UNSTABLE") camera = { ...camera, x: innerWidth * .018 * state.progress, y: -innerHeight * .015, zoom: mix(1.08, 1.12, state.progress) };
+      if (state.name === "BALL_DROP") camera = { ...camera, x: innerWidth * .025, y: innerHeight * .035 * state.progress, zoom: mix(1.12, 1.08, state.progress) };
+      if (state.name === "BALL_IMPACT") {
+        const shakeLife = Math.max(0, 1 - state.local / 220);
+        camera = { ...camera, x: innerWidth * .02, y: innerHeight * .035, zoom: 1.07, shakeX: Math.sin(state.local * .16) * 3 * shakeLife, shakeY: Math.cos(state.local * .19) * 2 * shakeLife };
       }
+      if (state.name === "NAME_REVEAL") camera.zoom = mix(1.07, 1.03, ease(state.progress));
+      if (state.name === "CELEBRATE") camera.zoom = mix(1.03, 1.07, Math.sin(state.progress * Math.PI));
+      if (state.name === "TRANSITION") camera.zoom = mix(1.03, 1, state.progress);
 
-      if (elapsed > drawTiming.impactAt && !exploded) {
+      context.save();
+      context.translate(innerWidth / 2 + camera.shakeX, innerHeight / 2 + camera.shakeY);
+      context.scale(camera.zoom, camera.zoom);
+      context.translate(-innerWidth / 2 - camera.x, -innerHeight / 2 - camera.y);
+      drawStage(elapsed);
+
+      let contactPulse = 0;
+      if (state.name === "ENTER") drawReactionClown(0, cx, { alpha: ease(state.progress) });
+      if (state.name === "JUGGLE") {
+        const spriteFrame = Math.floor(state.local / 105) % 8;
+        contactPulse = drawJugglingBalls(state, cx);
+        drawJuggleClown(spriteFrame, cx, contactPulse);
+      }
+      if (state.name === "BALL_UNSTABLE") {
+        drawJugglingBalls(state, cx);
+        drawJuggleClown(state.progress < .48 ? 6 : 7, cx);
+      }
+      if (["BALL_DROP", "BALL_IMPACT"].includes(state.name)) {
+        drawJugglingBalls(state, cx);
+        drawReactionClown(2, cx, { offsetY: Math.sin(state.local * .04) * 2 });
+      }
+      if (["NAME_REVEAL", "CELEBRATE"].includes(state.name)) drawReactionClown(3, cx, { glow: "#ffd84d" });
+
+      if (state.name === "BALL_IMPACT" && !exploded) {
         exploded = true;
-        const impactPoint = orbitPoint(0, drawTiming.dropStart, cx);
+        const release = dropRelease(cx);
         particles = Array.from({ length: 36 }, (_, index) => ({
-          x: impactPoint.x, y: innerHeight * .75 - 20,
+          x: release.x + 18, y: innerHeight * .76 - 18,
           vx: Math.cos(index * .9) * (2 + index % 5), vy: -2 - index % 7,
           color: ["#ffd84d", "#ff496c", "#48c7ff"][index % 3]
         }));
       }
       particles.forEach((particle) => {
-        particle.x += particle.vx; particle.y += particle.vy; particle.vy += .17;
+        const step = delta / 16.67;
+        particle.x += particle.vx * step; particle.y += particle.vy * step; particle.vy += .17 * step;
         rect(particle.x, particle.y, 6, 6, particle.color);
       });
+      context.restore();
 
-      if (elapsed < drawTiming.wobbleStart) {
-        centerText(elapsed < drawTiming.idleEnd ? "행운을 준비하는 중..." : "대진표 추천 중...", Math.max(65, innerHeight * .12), Math.min(30, innerWidth * .055), "#fff5cf");
-        centerText(elapsed < drawTiming.idleEnd ? "곧 추첨을 시작합니다" : "빨강 · 파랑 · 노랑, 3개의 운명 구슬이 회전합니다", Math.max(100, innerHeight * .18), 12, "#7eeeff");
-      } else if (elapsed < drawTiming.dropStart) {
-        centerText("하나의 구슬이 흔들립니다!", Math.max(65, innerHeight * .12), Math.min(25, innerWidth * .05), "#ffd84d");
-      } else if (elapsed < drawTiming.revealAt) {
-        centerText("운명의 구슬이 떨어집니다!", Math.max(65, innerHeight * .12), Math.min(25, innerWidth * .05), "#ffd84d");
-      } else if (elapsed < 5800) {
+      const captions = {
+        ENTER: ["행운을 준비하는 중...", "곧 추첨을 시작합니다", "#fff5cf"],
+        JUGGLE: ["대진표 추천 중...", "세 개의 구슬이 손에서 손으로 날아갑니다", "#fff5cf"],
+        BALL_UNSTABLE: ["구슬 하나가 궤도를 벗어납니다!", "삐에로가 이상한 움직임을 알아챘습니다", "#ffd84d"],
+        BALL_DROP: ["운명의 구슬이 떨어집니다!", "놓친 구슬을 따라 시선이 내려갑니다", "#ffd84d"],
+        BALL_IMPACT: ["운명의 구슬이 선택되었습니다!", "PIXEL IMPACT!", "#ffd84d"]
+      };
+      if (captions[state.name]) {
+        const [headline, subline, color] = captions[state.name];
+        centerText(headline, Math.max(65, innerHeight * .12), Math.min(29, innerWidth * .055), color);
+        centerText(subline, Math.max(100, innerHeight * .18), 12, state.name === "JUGGLE" ? "#7eeeff" : "#fff5cf");
+      }
+
+      if (["NAME_REVEAL", "CELEBRATE"].includes(state.name)) {
         const revealed = participantById(tournamentState.drawOrder[0]);
         rect(cx - Math.min(300, innerWidth * .43), innerHeight * .16, Math.min(600, innerWidth * .86), 118, "#101638");
         context.strokeStyle = "#ffd84d"; context.lineWidth = 5; context.strokeRect(cx - Math.min(300, innerWidth * .43), innerHeight * .16, Math.min(600, innerWidth * .86), 118);
         centerText(honorName(revealed.name), innerHeight * .16 + 48, Math.min(45, innerWidth * .09), "#ffd84d");
         centerText("첫 번째 참가자가 결정되었습니다!", innerHeight * .16 + 91, 13, "#a9edff");
-      } else {
-        const progress = Math.min(1, (elapsed - 5800) / 1500);
+      }
+
+      if (state.name === "TRANSITION") {
+        const progress = state.progress;
         context.fillStyle = `rgba(255,245,207,${Math.sin(progress * Math.PI) * .82})`;
         context.fillRect(0, 0, innerWidth, innerHeight);
         const gateWidth = Math.min(620, innerWidth * .86);
@@ -1453,12 +1726,12 @@
         centerText("대진 추천 완료!", innerHeight * .54, Math.min(24, innerWidth * .05), "#5effe5");
         for (let i = 0; i < 24; i += 1) {
           const size = 8 + (i % 3) * 6;
-          rect((i * 97 + elapsed * .2) % innerWidth, (i * 53) % innerHeight, size, size, i % 2 ? "#ffd84d" : "#48c7ff");
+          rect((i * 97 + state.local * .2) % innerWidth, (i * 53) % innerHeight, size, size, i % 2 ? "#ffd84d" : "#48c7ff");
         }
       }
       animationFrame = requestAnimationFrame(frame);
     }
-    drawStage(0, 0);
+    drawStage(0);
     centerText("캐릭터 불러오는 중...", Math.max(65, innerHeight * .12), Math.min(24, innerWidth * .05), "#fff5cf");
     await waitForVisualAssets();
     if (views.animation.hidden) return;
