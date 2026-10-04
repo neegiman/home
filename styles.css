@@ -334,7 +334,7 @@ body.result-mode { overflow: hidden; }
 .last-place-stage { position: absolute; z-index: 8; right: 2%; bottom: -2%; display: flex; flex-direction: column; align-items: center; filter: drop-shadow(0 10px 10px rgba(2,4,16,.55)); }
 .last-place-stage::before { content: ""; position: absolute; z-index: -1; left: 50%; bottom: 1%; width: 76%; height: 12%; transform: translateX(-50%); border-radius: 50%; background: rgba(5,7,23,.52); filter: blur(4px); animation: lastPlaceShadow 2.6s steps(8) infinite; }
 .result-view.playing .last-place-stage { animation: lastPlaceEnter .75s 3.15s steps(7) both; }
-.last-place-character { width: 108px; aspect-ratio: 1; background-image: url("assets/characters/zodiac-character-concept-v1.png"); background-repeat: no-repeat; background-size: 400% 300%; background-position: var(--zodiac-x, 0%) var(--zodiac-y, 0%); filter: var(--zodiac-tone, none) grayscale(.08) saturate(.82) drop-shadow(5px 7px 0 rgba(2,4,16,.48)); transform-origin: 50% 94%; animation: lastPlaceBow 2.6s steps(8) infinite; will-change: transform; image-rendering: pixelated; }
+.last-place-character { width: 108px; aspect-ratio: 1; background-image: var(--zodiac-motion-sheet); background-repeat: no-repeat; background-size: 400% 200%; background-position: 0% 100%; filter: var(--zodiac-tone, none) grayscale(.08) saturate(.82) drop-shadow(5px 7px 0 rgba(2,4,16,.48)); transform-origin: 50% 94%; animation: lastPlaceBowFrames 2.6s step-start infinite; will-change: background-position, transform; image-rendering: pixelated; }
 .last-place-name { max-width: 150px; margin-bottom: -7px; padding: 5px 9px; overflow: hidden; color: #fff2f4; border: 2px solid var(--red); background: rgba(12,12,35,.9); box-shadow: 4px 4px 0 rgba(60,13,43,.75); font-size: 11px; line-height: 1.2; white-space: nowrap; text-overflow: ellipsis; }
 .ending-roster { min-width: 0; display: flex; gap: 6px; overflow: hidden; }.ending-roster .roster-player { flex: 1 1 90px; min-width: 75px; min-height: 46px; grid-template-columns: 18px 1fr auto; gap: 5px; padding: 5px 6px; background: rgba(19,25,62,.92); }.ending-roster .roster-player small { display: none; }.ending-roster .roster-player strong { overflow: hidden; font-size: 9px; white-space: nowrap; text-overflow: ellipsis; }.roster-more { display: grid; place-items: center; min-width: 42px; color: var(--gold); border: 1px solid #4d5a8d; background: #13193e; font-size: 9px; }.ending-footer > small { color: #606c99; font-size: 7px; letter-spacing: .12em; white-space: nowrap; }
 
@@ -387,11 +387,12 @@ body.result-mode { overflow: hidden; }
 @keyframes slashA { 0% { opacity: 0; transform: translate(-50%, -50%) rotate(46deg) scaleY(.05); } 25%, 75% { opacity: 1; transform: translate(-50%, -50%) rotate(46deg) scaleY(1); } 100% { opacity: 0; transform: translate(-50%, -50%) rotate(46deg) scaleY(1); } }
 @keyframes slashB { 0% { opacity: 0; transform: translate(-50%, -50%) rotate(-46deg) scaleY(.05); } 25%, 75% { opacity: 1; transform: translate(-50%, -50%) rotate(-46deg) scaleY(1); } 100% { opacity: 0; transform: translate(-50%, -50%) rotate(-46deg) scaleY(1); } }
 @keyframes pixelBurst { 0% { transform: translate(-50%, -50%) rotate(45deg) scale(0); opacity: 0; } 45% { transform: translate(-50%, -50%) rotate(45deg) scale(1); opacity: 1; } 100% { transform: translate(-50%, -50%) rotate(135deg) scale(4.5); opacity: 0; } }
-@keyframes lastPlaceBow {
-  0%, 14%, 100% { background-position: var(--zodiac-x, 0%) var(--zodiac-y, 0%); transform: translate(var(--zodiac-center-shift, 0%), var(--zodiac-ground-shift, 0%)) perspective(650px) rotateX(0) scale(var(--zodiac-motion-scale, 1)) scaleY(1); }
-  26% { transform: translate(var(--zodiac-center-shift, 0%), calc(var(--zodiac-ground-shift, 0%) + 3%)) perspective(650px) rotateX(var(--zodiac-bow-half, 16deg)) scale(var(--zodiac-motion-scale, 1)) scaleY(.96); }
-  42%, 68% { background-position: var(--zodiac-x, 0%) var(--zodiac-y, 0%); transform: translate(var(--zodiac-center-shift, 0%), calc(var(--zodiac-ground-shift, 0%) + 10%)) perspective(650px) rotateX(var(--zodiac-bow-tilt, 32deg)) scale(var(--zodiac-motion-scale, 1)) scaleY(var(--zodiac-bow-squash, .88)); }
-  80% { transform: translate(var(--zodiac-center-shift, 0%), calc(var(--zodiac-ground-shift, 0%) + 5%)) perspective(650px) rotateX(var(--zodiac-bow-half, 16deg)) scale(var(--zodiac-motion-scale, 1)) scaleY(.94); }
+@keyframes lastPlaceBowFrames {
+  0%, 15%, 100% { background-position: 0% 100%; transform: translateY(0); }
+  18%, 31% { background-position: 33.333% 100%; transform: translateY(0); }
+  34%, 68% { background-position: 66.667% 100%; transform: translateY(0); }
+  72%, 86% { background-position: 100% 100%; transform: translateY(0); }
+  89%, 99% { background-position: 0% 100%; transform: translateY(0); }
 }
 @keyframes lastPlaceShadow { 0%,14%,100% { opacity: .42; transform: translateX(-50%) scaleX(.82); } 42%,68% { opacity: .68; transform: translateX(-50%) scaleX(1.08); } }
 @keyframes lastPlaceEnter { from { opacity: 0; transform: translateY(70px); } to { opacity: 1; transform: translateY(0); } }
