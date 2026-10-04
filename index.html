@@ -1,12 +1,257 @@
-<!DOCTYPE HTML>
-<html>
-<meta charset="utf-8">
-<link href="style.css" rel="stylesheet"/>
-<script src="app.js"></script>
+<!doctype html>
+<html lang="ko">
 <head>
-    <title>saltfactory's page</title>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#090b1d">
+  <meta name="description" content="참가자를 등록하고 8비트 아케이드 스타일로 우승자와 최하위를 가리는 랜덤 토너먼트">
+  <title>PIXEL CLASH — 랜덤 토너먼트</title>
+  <link rel="preload" href="assets/characters/clown-spritesheet.png" as="image" fetchpriority="high">
+  <link rel="preload" href="assets/characters/clown-juggle-8f.png" as="image" fetchpriority="high">
+  <link rel="preload" href="assets/characters/zodiac-character-concept-v1.png" as="image" fetchpriority="high">
+  <link rel="preload" href="assets/backgrounds/draw-stage.png" as="image">
+  <link rel="preload" href="assets/backgrounds/champion-arena.png" as="image">
+  <link rel="stylesheet" href="styles.css?v=20261004-zodiac-frame-animation">
 </head>
 <body>
-<h1>This page is saltfactory's github page</h1>
+  <div class="crt" aria-hidden="true"></div>
+
+  <main id="registrationView" class="registration-view">
+    <header class="hero">
+      <div class="hero__eyebrow"><span class="live-dot"></span> ARCADE SYSTEM READY</div>
+      <h1><span>PIXEL</span> CLASH</h1>
+      <p>이름을 올리고, 운명적인 대진을 시작하세요.</p>
+      <div class="coin-line" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i></div>
+    </header>
+
+    <div class="setup-shell">
+      <section class="pixel-panel tournament-form" aria-labelledby="tournamentInfoTitle">
+        <div class="panel-heading">
+          <div>
+            <span class="step-chip">01</span>
+            <h2 id="tournamentInfoTitle">토너먼트 정보</h2>
+          </div>
+          <span class="panel-kicker">GAME SETUP</span>
+        </div>
+
+        <label class="field">
+          <span>토너먼트명 <b>*</b></span>
+          <input id="tournamentName" type="text" maxlength="60" placeholder="2026 개발팀 랜덤 토너먼트" autocomplete="off">
+        </label>
+        <div class="two-fields">
+          <label class="field">
+            <span>상금</span>
+            <input id="tournamentPrize" type="text" maxlength="80" placeholder="1위 상품권 10만원" autocomplete="off">
+          </label>
+          <label class="field">
+            <span>비고</span>
+            <input id="tournamentMemo" type="text" maxlength="100" placeholder="개발팀 워크숍" autocomplete="off">
+          </label>
+        </div>
+      </section>
+
+      <section class="pixel-panel participants-panel" aria-labelledby="participantsTitle">
+        <div class="panel-heading">
+          <div>
+            <span class="step-chip step-chip--cyan">02</span>
+            <h2 id="participantsTitle">참가자 등록</h2>
+          </div>
+          <div class="count-display"><strong id="participantCount">0</strong><span>PLAYERS</span></div>
+        </div>
+
+        <form id="participantForm" class="participant-entry">
+          <label class="field">
+            <span>이름 <b>*</b></span>
+            <input id="participantName" type="text" maxlength="30" placeholder="김민준" autocomplete="off">
+          </label>
+          <label class="field">
+            <span>팀</span>
+            <input id="participantTeam" type="text" maxlength="40" placeholder="플랫폼팀" autocomplete="off">
+          </label>
+          <button class="pixel-btn pixel-btn--add" type="submit"><span>+</span> 참가자 추가</button>
+        </form>
+
+        <div class="list-toolbar">
+          <p id="participantHint">최소 4명을 권장해요. 홀수 인원도 가능합니다.</p>
+          <button id="shufflePreview" class="text-btn" type="button" disabled>↝ 순서 섞기</button>
+        </div>
+        <div id="participantList" class="participant-list" aria-live="polite">
+          <div class="empty-party"><span>?</span><p>아직 참가자가 없습니다<br><small>용감한 플레이어를 등록해 주세요</small></p></div>
+        </div>
+      </section>
+
+      <section class="launch-zone">
+        <div class="launch-note"><span>TIP</span> 생성 후 URL에 대진 정보가 안전하게 저장됩니다.</div>
+        <button id="generateButton" class="generate-btn" type="button">
+          <span class="generate-btn__icon">⚔</span>
+          <span><b>랜덤 대진 생성</b><small>PRESS START</small></span>
+          <span class="generate-btn__arrow">▶</span>
+        </button>
+        <p id="formError" class="form-error" role="alert"></p>
+      </section>
+    </div>
+  </main>
+
+  <section id="animationView" class="animation-view" hidden aria-label="토너먼트 대진 추첨 애니메이션">
+    <canvas id="tournamentAnimation"></canvas>
+    <button id="skipAnimation" class="skip-btn" type="button">SKIP ›</button>
+  </section>
+
+  <section id="finalStairView" class="final-stair-view" hidden aria-label="최종 1위와 최하위 결정 애니메이션">
+    <canvas id="finalStairAnimation"></canvas>
+    <div class="stair-scene-hud" aria-hidden="true">
+      <span>FINAL CEREMONY</span>
+      <strong id="finalStairCaption">두 참가자가 마지막 계단에 올랐습니다</strong>
+    </div>
+    <button id="skipFinalStair" class="skip-btn" type="button">결과 바로 보기 ›</button>
+  </section>
+
+  <main id="tournamentView" class="tournament-view" hidden>
+    <header class="game-header">
+      <a class="mini-logo" href="index.html" aria-label="새 토너먼트 만들기"><span>PIXEL</span> CLASH</a>
+      <div class="game-title">
+        <span>TOURNAMENT</span>
+        <h1 id="gameTournamentName"></h1>
+      </div>
+      <button id="resetButton" class="header-btn" type="button">↻ 새 게임</button>
+    </header>
+
+    <section class="game-meta" aria-label="토너먼트 정보">
+      <div><span>PLAYERS</span><strong id="gamePlayerCount">0</strong></div>
+      <div><span>PRIZE</span><strong id="gamePrize">-</strong></div>
+      <div><span>MEMO</span><strong id="gameMemo">-</strong></div>
+      <div class="progress-meta"><span>PROGRESS</span><strong id="overallProgress">0%</strong></div>
+    </section>
+
+    <nav id="gameFlowNav" class="game-flow-nav" aria-label="토너먼트 진행 단계">
+      <button class="flow-step active" type="button" data-game-stage="initial">
+        <span>01</span><strong>초기 대결</strong><small>승자·패자 결정</small>
+      </button>
+      <i aria-hidden="true">▶</i>
+      <button class="flow-step" type="button" data-game-stage="winner" disabled>
+        <span>02</span><strong>승자조</strong><small>최종 1위 결정</small>
+      </button>
+      <i aria-hidden="true">▶</i>
+      <button class="flow-step" type="button" data-game-stage="loser" disabled>
+        <span>03</span><strong>패자조</strong><small>최하위 결정</small>
+      </button>
+      <i aria-hidden="true">▶</i>
+      <button class="flow-step" type="button" data-game-stage="result" disabled>
+        <span>04</span><strong>최종 결과</strong><small>우승자 공개·공유</small>
+      </button>
+    </nav>
+
+    <section id="initialStage" class="stage-section game-screen">
+      <div class="section-title">
+        <div><span class="stage-number">STAGE 01</span><h2>운명의 첫 대결</h2></div>
+        <p>각 매치에서 <b>승자</b>를 선택하세요.</p>
+      </div>
+      <div id="initialMatches" class="initial-grid"></div>
+    </section>
+
+    <section id="bracketStage" class="stage-section bracket-stage game-screen" hidden>
+      <div class="progress-board">
+        <div><span class="pulse-square"></span><div><small>현재 진행</small><strong id="currentProgressText">다음 매치를 선택하세요</strong></div></div>
+        <div class="legend"><span class="legend-win">승자조</span><span class="legend-lose">패자조</span></div>
+      </div>
+      <div class="bracket-layout">
+        <section id="winnerStagePage" class="bracket-panel bracket-panel--winner" hidden>
+          <header><div><span>BLUE CASTLE</span><h2>승자조</h2><p>최종 1위 결정</p></div><div class="bracket-emblem">♛</div></header>
+          <div id="winnerBracket" class="bracket-scroll"></div>
+          <footer class="stage-footer">
+            <button class="pixel-btn pixel-btn--ghost" type="button" data-move-stage="initial">‹ 초기 대결 보기</button>
+            <button id="goLoserStage" class="pixel-btn pixel-btn--light" type="button" hidden>패자조로 이동 ▶</button>
+          </footer>
+        </section>
+        <section id="loserStagePage" class="bracket-panel bracket-panel--loser" hidden>
+          <header><div><span>RED DUNGEON</span><h2>패자조</h2><p>최하위 결정</p></div><div class="bracket-emblem">☠</div></header>
+          <div id="loserBracket" class="bracket-scroll bracket-scroll--reverse"></div>
+          <footer class="stage-footer">
+            <button class="pixel-btn pixel-btn--ghost" type="button" data-move-stage="winner">‹ 승자조 보기</button>
+            <span>패자를 선택해 마지막 생존자를 결정하세요</span>
+            <button id="goResultStage" class="pixel-btn pixel-btn--gold" type="button" hidden>최종 결과 보기 ▶</button>
+          </footer>
+        </section>
+      </div>
+    </section>
+
+    <section id="completionPanel" class="completion-panel" hidden>
+      <span class="complete-chip">★ TOURNAMENT COMPLETE ★</span>
+      <h2>모든 운명이 결정되었습니다!</h2>
+      <div class="final-duo">
+        <div class="final-card final-card--first"><span>FINAL 1ST</span><strong id="finalFirstName"></strong><small>최종 1위</small></div>
+        <div class="versus-mark">&amp;</div>
+        <div class="final-card final-card--last"><span>FINAL LAST</span><strong id="finalLastName"></strong><small>최하위</small></div>
+      </div>
+      <div class="share-actions">
+        <button id="nativeShareButton" class="pixel-btn pixel-btn--gold" type="button">↗ 결과 공유</button>
+        <button id="copyLinkButton" class="pixel-btn pixel-btn--ghost" type="button">⧉ 링크 복사</button>
+        <button id="viewResultButton" class="pixel-btn pixel-btn--light" type="button">결과 화면 보기 ▶</button>
+      </div>
+      <p id="shareMessage" class="share-message" aria-live="polite"></p>
+    </section>
+  </main>
+
+  <main id="resultView" class="result-view" hidden>
+    <section id="resultIntro" class="result-intro" aria-label="최종 결과 공개 대기">
+      <div class="drum-pulse" aria-hidden="true"><i></i><i></i><i></i></div>
+      <span>FINAL RESULT</span>
+      <h1 id="suspenseBeat">두구두구...</h1>
+      <p>잠시 후 결과가 공개됩니다</p>
+      <button id="skipResultReveal" class="skip-btn result-skip" type="button">결과 바로 보기 ›</button>
+    </section>
+
+    <section id="resultReveal" class="result-reveal">
+      <header class="ending-header">
+        <div><span>PIXEL CLASH</span><strong id="shareTournamentName"></strong></div>
+        <div class="ending-actions">
+          <button id="showEndingCredits" type="button">☷ 엔딩 캐스트</button>
+          <button id="copyResultLink" type="button">⧉ 공유 링크</button>
+          <button id="replayResult" type="button">↻ 다시 보기</button>
+          <a href="index.html">＋ 새 토너먼트</a>
+        </div>
+      </header>
+
+      <div class="ending-main">
+        <div class="champion-visual">
+          <div class="champion-nameplate">
+            <span>TOURNAMENT CHAMPION</span>
+            <strong id="shareFirstName"></strong>
+            <small>최종 1위</small>
+          </div>
+          <div id="resultTrainer" class="trainer-sprite zodiac-sprite" data-state="idle" role="img" aria-label="최종 우승자 캐릭터"></div>
+          <div class="last-place-stage" aria-label="최하위 참가자">
+            <strong id="shareLastName" class="last-place-name"></strong>
+            <div class="last-place-character zodiac-sprite" role="img" aria-label="고개 숙여 절하는 최종 꼴등 캐릭터"></div>
+          </div>
+        </div>
+        <div class="result-stage-meta">
+          <span>PRIZE <b id="sharePrize">-</b></span>
+          <span>MEMO <b id="shareMemo">-</b></span>
+        </div>
+      </div>
+
+      <button id="endingCreditsBackdrop" class="ending-credits-backdrop" type="button" tabindex="-1" aria-hidden="true" aria-label="엔딩 캐스트 닫기"></button>
+      <aside id="endingCredits" class="ending-credits" role="dialog" aria-modal="true" aria-labelledby="endingCreditsTitle" aria-hidden="true">
+        <button id="closeEndingCredits" class="ending-credits__close" type="button" aria-label="엔딩 캐스트 닫기">×</button>
+        <div class="ending-credits__heading"><span>CHAMPIONSHIP RESULTS</span><h2 id="endingCreditsTitle">FINAL CAST</h2><p>승리 수 · 진출 라운드 · 등록 순서 기준</p></div>
+        <div id="shareParticipantList" class="ending-roster" aria-label="전체 참가자 명단"></div>
+        <div class="ending-credits__complete"><strong>TOURNAMENT COMPLETE</strong><small>THANK YOU FOR PLAYING</small></div>
+      </aside>
+
+      <footer class="ending-footer"><span>FINAL RESULT · ORIGINAL PIXEL TOURNAMENT</span><small>THANKS FOR PLAYING</small></footer>
+    </section>
+  </main>
+
+  <div id="battleFx" class="battle-fx" hidden aria-hidden="true">
+    <i class="battle-fx__slash battle-fx__slash--a"></i>
+    <i class="battle-fx__slash battle-fx__slash--b"></i>
+    <i class="battle-fx__burst"></i>
+    <strong id="battleFxText">대결!</strong>
+    <small id="battleFxNames"></small>
+  </div>
+  <canvas id="celebrationCanvas" class="celebration-canvas" hidden aria-hidden="true"></canvas>
+  <div id="toast" class="toast" role="status" aria-live="polite"></div>
+  <script src="app.js?v=20261004-zodiac-frame-animation"></script>
 </body>
 </html>
