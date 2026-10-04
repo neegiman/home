@@ -129,7 +129,14 @@
     return [key, image];
   }));
 
-  const visualAssetsReady = Promise.allSettled([...Object.values(characterAssets), ...Object.values(zodiacMotionAssets)].map((image) => {
+  const zodiacCryAssets = Object.fromEntries(ZODIAC_CHARACTERS.map(({ key }) => {
+    const image = new Image();
+    image.decoding = "async";
+    image.src = `assets/characters/zodiac-cry-v1/${key}.png`;
+    return [key, image];
+  }));
+
+  const visualAssetsReady = Promise.allSettled([...Object.values(characterAssets), ...Object.values(zodiacMotionAssets), ...Object.values(zodiacCryAssets)].map((image) => {
     if (image.complete && image.naturalWidth) return Promise.resolve();
     return new Promise((resolve) => {
       image.addEventListener("load", resolve, { once: true });
@@ -1081,6 +1088,7 @@
       { name: "WALK_TOGETHER", duration: 2600 },
       { name: "LOSER_STUMBLE", duration: 600 },
       { name: "LOSER_FALL", duration: 750 },
+      { name: "LOSER_SIT_UP", duration: 650 },
       { name: "WINNER_LOOK_BACK", duration: 450 },
       { name: "WINNER_CLIMB", duration: 1700 },
       { name: "WINNER_ARRIVE", duration: 500 },
@@ -1089,6 +1097,8 @@
       { name: "FINAL_WIDE_SHOT", duration: 1000 }
     ];
     const duration = sequence.reduce((sum, state) => sum + state.duration, 0);
+    const sitUpIndex = sequence.findIndex((state) => state.name === "LOSER_SIT_UP");
+    const cryingStart = sequence.slice(0, sitUpIndex).reduce((sum, state) => sum + state.duration, 0) + sequence[sitUpIndex].duration * .62;
     const playbackRate = reducedMotion ? duration / 1300 : 1;
     let startedAt = 0;
     let completed = false;
@@ -1159,16 +1169,18 @@
       const variant = participantColorVariant(participant);
       const motion = zodiacMotionProfile(participant);
       const motionSheet = zodiacMotionAssets[character.key];
-      const useMotionFrame = Number.isInteger(options.motionFrame) && motionSheet?.complete && motionSheet.naturalWidth;
-      const sheet = useMotionFrame ? motionSheet : characterAssets.zodiac;
+      const crySheet = zodiacCryAssets[character.key];
+      const useCryFrame = Number.isInteger(options.cryFrame) && crySheet?.complete && crySheet.naturalWidth;
+      const useMotionFrame = !useCryFrame && Number.isInteger(options.motionFrame) && motionSheet?.complete && motionSheet.naturalWidth;
+      const sheet = useCryFrame ? crySheet : useMotionFrame ? motionSheet : characterAssets.zodiac;
       if (!sheet.complete || !sheet.naturalWidth) return;
-      const cellWidth = sheet.naturalWidth / (useMotionFrame ? 4 : ZODIAC_COLUMNS);
-      const cellHeight = sheet.naturalHeight / (useMotionFrame ? 2 : ZODIAC_ROWS);
-      const sourceX = useMotionFrame ? clamp(options.motionFrame, 0, 3) * cellWidth : character.column * cellWidth;
-      const sourceY = useMotionFrame ? clamp(options.motionRow || 0, 0, 1) * cellHeight : character.row * cellHeight;
-      const scale = (options.scale ?? 1) * (useMotionFrame ? 1 : motion.scale);
-      const center = useMotionFrame ? .5 : motion.center;
-      const ground = useMotionFrame ? 248 / 256 : motion.bottom;
+      const cellWidth = sheet.naturalWidth / (useCryFrame ? 2 : useMotionFrame ? 4 : ZODIAC_COLUMNS);
+      const cellHeight = sheet.naturalHeight / (useCryFrame ? 1 : useMotionFrame ? 2 : ZODIAC_ROWS);
+      const sourceX = useCryFrame ? clamp(options.cryFrame, 0, 1) * cellWidth : useMotionFrame ? clamp(options.motionFrame, 0, 3) * cellWidth : character.column * cellWidth;
+      const sourceY = useCryFrame ? 0 : useMotionFrame ? clamp(options.motionRow || 0, 0, 1) * cellHeight : character.row * cellHeight;
+      const scale = (options.scale ?? 1) * (useCryFrame || useMotionFrame ? 1 : motion.scale);
+      const center = useCryFrame || useMotionFrame ? .5 : motion.center;
+      const ground = useCryFrame || useMotionFrame ? 248 / 256 : motion.bottom;
       context.save();
       context.translate(Math.round(x + (options.offsetX || 0)), Math.round(feetY + (options.offsetY || 0)));
       if (options.mirror) context.scale(-1, 1);
@@ -1215,6 +1227,12 @@
         motionFrame: Math.min(3, Math.floor(clamp(position.local) * 4)),
         offsetX: direction * Math.sin(Math.PI * 2 * position.local) * 1.5
       };
+    }
+
+    function seatedCryPose(age) {
+      // Real seated frames alternate the head/arms; the ground anchor never bounces.
+      // The kneeling frame is a safe fallback if a crying asset cannot load.
+      return { cryFrame: Math.floor(Math.max(0, age) / 340) % 2, motionRow: 1, motionFrame: 1, mirror: true };
     }
 
     function drawFallEffects(x, y, age) {
@@ -1264,8 +1282,10 @@
     function nameplateAbove(participant, feetY, spriteSize, pose = {}) {
       const safeTop = innerWidth <= 700 ? 92 : 96;
       const motion = zodiacMotionProfile(participant);
-      const visibleHeight = Number.isInteger(pose.motionFrame)
-        ? spriteSize * .91 * (pose.scale ?? 1) * (pose.scaleY ?? 1)
+      const visibleHeight = Number.isInteger(pose.cryFrame)
+        ? spriteSize * (174 / 256) * (pose.scale ?? 1)
+        : Number.isInteger(pose.motionFrame)
+          ? spriteSize * .91 * (pose.scale ?? 1) * (pose.scaleY ?? 1)
         : spriteSize * (motion.bottom - motion.top) * motion.scale * (pose.scale ?? 1) * (pose.scaleY ?? 1);
       return Math.max(safeTop, feetY - visibleHeight - 24);
     }
@@ -1309,36 +1329,41 @@
         loserProgress = clamp((state.progress - .04) / .96) * .52;
         winnerWalking = true;
         loserWalking = true;
-      } else if (["LOSER_STUMBLE", "LOSER_FALL", "WINNER_LOOK_BACK"].includes(state.name)) {
+      } else if (["LOSER_STUMBLE", "LOSER_FALL", "LOSER_SIT_UP", "WINNER_LOOK_BACK"].includes(state.name)) {
         winnerProgress = .56;
         loserProgress = .52;
         winnerPose = state.name === "WINNER_LOOK_BACK" ? { motionRow: 0, motionFrame: 0, mirror: true, rotate: 4 } : { motionRow: 0, motionFrame: 0, rotate: Math.sin(elapsed / 280 * Math.PI) * .7 };
         loserPose = state.name === "LOSER_STUMBLE"
           ? { motionRow: 0, motionFrame: 0, mirror: true, rotate: Math.sin(state.local * .07) * (3 + state.progress * 6), scaleY: 1 - state.progress * .03 }
           : state.name === "LOSER_FALL"
-            ? { motionRow: 0, motionFrame: 0, mirror: true, rotate: mix(0, lastMotion.fallRotate, ease(state.progress)), scaleY: mix(1, lastMotion.fallSquash, ease(state.progress)), offsetY: state.progress * 3 }
-            : { motionRow: 0, motionFrame: 0, mirror: true, rotate: lastMotion.fallRotate, scaleY: lastMotion.fallSquash, offsetY: 3 };
+            ? state.progress < .72
+              ? { motionRow: 0, motionFrame: 0, mirror: true, rotate: mix(0, lastMotion.fallRotate, ease(state.progress / .72)), scaleY: mix(1, lastMotion.fallSquash, ease(state.progress / .72)) }
+              : { motionRow: 1, motionFrame: 2, mirror: true }
+            : state.name === "LOSER_SIT_UP" && state.progress < .62
+              ? { motionRow: 1, motionFrame: state.progress < .24 ? 2 : 1, mirror: true }
+              : seatedCryPose(elapsed - cryingStart);
       } else if (state.name === "WINNER_CLIMB") {
         winnerProgress = .56 + state.progress * .44;
         loserProgress = .52;
         winnerWalking = true;
-        loserPose = { motionRow: 0, motionFrame: 0, mirror: true, rotate: lastMotion.fallRotate, scaleY: lastMotion.fallSquash + Math.abs(Math.sin(state.local / 320 * Math.PI)) * .012, offsetY: 3 };
       } else if (state.name === "WINNER_ARRIVE") {
         winnerProgress = 1;
         loserProgress = .52;
         winnerPose = { motionRow: 0, motionFrame: 0, offsetY: -Math.sin(state.progress * Math.PI) * 9, scale: 1 + Math.sin(state.progress * Math.PI) * .04 };
-        loserPose = { motionRow: 0, motionFrame: 0, mirror: true, rotate: lastMotion.fallRotate, scaleY: lastMotion.fallSquash, offsetY: 3 };
       } else if (state.name === "VICTORY") {
         winnerProgress = 1;
         loserProgress = .52;
         winnerPose = { motionRow: 0, motionFrame: 0, offsetY: -Math.abs(Math.sin(state.local / 260 * Math.PI)) * 13, scale: 1 + Math.abs(Math.sin(state.local / 260 * Math.PI)) * .07, glow: "rgba(255,216,77,.72)" };
-        loserPose = { motionRow: 0, motionFrame: 0, mirror: true, rotate: lastMotion.fallRotate, scaleY: lastMotion.fallSquash + Math.abs(Math.sin(state.local / 380 * Math.PI)) * .01, offsetY: 3 };
       } else if (["LOOK_DOWN", "FINAL_WIDE_SHOT"].includes(state.name)) {
         winnerProgress = 1;
         loserProgress = .52;
         winnerPose = { motionRow: 0, motionFrame: 0, rotate: state.name === "LOOK_DOWN" ? 5 : 0, scale: state.name === "FINAL_WIDE_SHOT" ? 1.04 : 1, glow: "rgba(255,216,77,.6)" };
-        loserPose = { motionRow: 0, motionFrame: 0, mirror: true, rotate: lastMotion.fallRotate, scaleY: lastMotion.fallSquash + Math.abs(Math.sin(state.local / 420 * Math.PI)) * .008, offsetY: 3 };
       }
+
+      if (["WINNER_LOOK_BACK", "WINNER_CLIMB", "WINNER_ARRIVE", "VICTORY", "LOOK_DOWN", "FINAL_WIDE_SHOT"].includes(state.name)) {
+        loserPose = seatedCryPose(elapsed - cryingStart);
+      }
+      canvas.dataset.loserPose = Number.isInteger(loserPose.cryFrame) ? "SEATED_CRY" : state.name === "LOSER_SIT_UP" ? "SITTING_UP" : state.name;
 
       const winnerPos = stairPosition(winnerProgress, "winner", size * firstMotion.scale);
       let loserPos = stairPosition(loserProgress, "loser", lastSize * lastMotion.scale);
@@ -1372,6 +1397,7 @@
         camera = { ...camera, zoom: 1.025, shakeX: Math.sin(state.local * .13) * 3 * shakeLife, shakeY: Math.cos(state.local * .16) * 2 * shakeLife };
       }
       if (state.name === "WINNER_LOOK_BACK") camera.zoom = 1.03;
+      if (state.name === "LOSER_SIT_UP") camera.zoom = mix(1.025, 1.03, state.progress);
       if (state.name === "WINNER_CLIMB") camera.zoom = mix(1.03, 1.06, state.progress);
       if (state.name === "WINNER_ARRIVE") camera.zoom = mix(1.06, 1.075, ease(state.progress));
       if (state.name === "VICTORY") camera.zoom = mix(1.075, 1.09, ease(state.progress));
@@ -1383,6 +1409,7 @@
         WALK_TOGETHER: "두 참가자가 계단을 한 칸씩 오릅니다",
         LOSER_STUMBLE: `${honorName(last?.name || "")}이 발을 헛디뎠습니다!`,
         LOSER_FALL: `${honorName(last?.name || "")}이 균형을 잃었습니다`,
+        LOSER_SIT_UP: `${honorName(last?.name || "")}이 앉아서 눈물을 닦습니다`,
         WINNER_LOOK_BACK: `${honorName(first?.name || "")}이 잠시 뒤를 돌아봅니다`,
         WINNER_CLIMB: `${honorName(first?.name || "")}은 다시 정상으로 향합니다`,
         WINNER_ARRIVE: "마지막 계단에 도착했습니다",

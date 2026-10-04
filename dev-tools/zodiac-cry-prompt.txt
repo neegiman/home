@@ -1,0 +1,16 @@
+Mode: built-in image_gen tool, transparent_background=true.
+Output: assets/characters/zodiac-cry-v1/{rat,ox,tiger,rabbit,dragon,snake,horse,goat,monkey,rooster,dog,boar}.png
+Reference designs: assets/characters/zodiac-character-concept-v1.png and zodiac-motion-v1/rat.png.
+Preparation: crop two poses per species, nearest-neighbor scale shared between frames,
+center each on a 256px cell, contact baseline y=248, maximum visible height 174px.
+Renderer mirrors poses toward the champion on the left. Original color variants are preserved.
+
+Final generation prompt:
+Use case: identity-preserve.
+Asset type: transparent pixel-art animation sprite atlas for an existing tournament game.
+Input image 1: the exact approved 12 original zodiac adventurer character designs, 4 columns by 3 rows. Input image 2: rat motion sheet, pixel density and sprite quality reference.
+Primary request: create only a new SEATED CRYING animation state for all these SAME 12 characters. Preserve each species, face silhouette, hair, horns, ears, outfit construction, original color palette, pixel outlines and accessories; do not redesign.
+Layout: exactly 4 equal columns by 6 equal rows, portrait 2:3 canvas, 24 square cells. No visible cell lines. Row 1: rat, ox, tiger, rabbit, pose A. Row 2: rat, ox, tiger, rabbit, pose B. Row 3: dragon, snake, horse, goat, pose A. Row 4: dragon, snake, horse, goat, pose B. Row 5: monkey, rooster, dog, boar, pose A. Row 6: monkey, rooster, dog, boar, pose B.
+Pose A: seated on the ground after a harmless comic stumble, legs visibly bent in front, sad face with closed crying eyes, one hand rubbing an eye, tiny blue tear. Pose B: same seated legs and grounded position, shoulders slightly lower, head dipped, hands near cheeks wiping tears. Gently comic disappointed sobbing, not injury or humiliation. Every character faces slightly toward LEFT so they look toward the winner. Snake sits coiled and cries; birds, hooves, tails remain species appropriate.
+Each sprite entirely inside its own cell with transparent padding. Same character size between A and B; identical feet/body contact baseline 94% down each cell. Head and torso same proportions as reference, seated pose visibly shorter than standing. Crisp genuine pixel-art, limited shade steps, chunky dark outline matching references, no smooth painterly texture. Keep all design details recognizable at small display size.
+Background: genuine alpha transparency. No floor, no shadow plate, no backdrop, no UI, no labels, no text, no logos, no extra props or characters. No standing, lying flat, bowing or rotated standing pose. Render articulated seated bodies and actual alternate crying arm/head frames.
