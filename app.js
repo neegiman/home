@@ -1560,10 +1560,14 @@
       return point;
     }
 
-    function drawCatchSparkle(point) {
+    function contactStrength(point) {
       const contact = Math.min(point.progress, 1 - point.progress);
-      if (contact > .075) return 0;
-      const strength = 1 - contact / .075;
+      return contact > .075 ? 0 : 1 - contact / .075;
+    }
+
+    function drawCatchSparkle(point) {
+      const strength = contactStrength(point);
+      if (!strength) return 0;
       for (let index = 0; index < 4; index += 1) {
         const angle = index * Math.PI / 2;
         const radius = 8 + strength * 7;
@@ -1664,16 +1668,19 @@
       if (state.name === "ENTER") drawReactionClown(0, cx, { alpha: ease(state.progress) });
       if (state.name === "JUGGLE") {
         const spriteFrame = Math.floor(state.local / 105) % 8;
-        contactPulse = drawJugglingBalls(state, cx);
+        contactPulse = [0, 1, 2].reduce((strongest, index) => (
+          Math.max(strongest, contactStrength(cascadePoint(index, state.local, cx)))
+        ), 0);
         drawJuggleClown(spriteFrame, cx, contactPulse);
+        drawJugglingBalls(state, cx);
       }
       if (state.name === "BALL_UNSTABLE") {
-        drawJugglingBalls(state, cx);
         drawJuggleClown(state.progress < .48 ? 6 : 7, cx);
+        drawJugglingBalls(state, cx);
       }
       if (["BALL_DROP", "BALL_IMPACT"].includes(state.name)) {
-        drawJugglingBalls(state, cx);
         drawReactionClown(2, cx, { offsetY: Math.sin(state.local * .04) * 2 });
+        drawJugglingBalls(state, cx);
       }
       if (["NAME_REVEAL", "CELEBRATE"].includes(state.name)) drawReactionClown(3, cx, { glow: "#ffd84d" });
 
