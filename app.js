@@ -1133,8 +1133,7 @@
       drawNameplate(first?.name || "", winnerPos.x, nameplateAbove(winnerPos.y, size), "#ffd84d");
 
       drawSprite(characterAssets.loserCutscene, loserFrame, loserPos.x, loserPos.y, lastSize, { mirror: true, glow: "rgba(255,73,108,.25)" });
-      const loserLabelSize = fallPosition ? lastSize * .7 : lastSize;
-      drawNameplate(last?.name || "", loserPos.x, nameplateAbove(loserPos.y, loserLabelSize), "#ff6b87");
+      drawNameplate(last?.name || "", loserPos.x, nameplateAbove(loserPos.y, lastSize), "#ff6b87");
 
       if (state.name === "LOSER_FALL") drawFallEffects(loserPos.x, loserPos.y, state.local);
       if (["VICTORY", "LOOK_DOWN", "FINAL_WIDE_SHOT"].includes(state.name)) drawVictoryEffects(winnerPos.x, winnerPos.y, size, state.local);
@@ -1709,10 +1708,12 @@
 
       if (["NAME_REVEAL", "CELEBRATE"].includes(state.name)) {
         const revealed = participantById(tournamentState.drawOrder[0]);
-        rect(cx - Math.min(300, innerWidth * .43), innerHeight * .16, Math.min(600, innerWidth * .86), 118, "#101638");
-        context.strokeStyle = "#ffd84d"; context.lineWidth = 5; context.strokeRect(cx - Math.min(300, innerWidth * .43), innerHeight * .16, Math.min(600, innerWidth * .86), 118);
-        centerText(honorName(revealed.name), innerHeight * .16 + 48, Math.min(45, innerWidth * .09), "#ffd84d");
-        centerText("첫 번째 참가자가 결정되었습니다!", innerHeight * .16 + 91, 13, "#a9edff");
+        const { size, stageY } = clownLayout();
+        const panelY = clamp(stageY - size * .91 - 142, 58, innerHeight * .19);
+        rect(cx - Math.min(300, innerWidth * .43), panelY, Math.min(600, innerWidth * .86), 118, "#101638");
+        context.strokeStyle = "#ffd84d"; context.lineWidth = 5; context.strokeRect(cx - Math.min(300, innerWidth * .43), panelY, Math.min(600, innerWidth * .86), 118);
+        centerText(honorName(revealed.name), panelY + 48, Math.min(45, innerWidth * .09), "#ffd84d");
+        centerText("첫 번째 참가자가 결정되었습니다!", panelY + 91, 13, "#a9edff");
       }
 
       if (state.name === "TRANSITION") {
