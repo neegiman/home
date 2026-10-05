@@ -698,67 +698,6 @@
     return `<button class="bracket-player focus-player${selected ? " selected" : ""}${team ? "" : " no-team"}" type="button" data-bracket-type="${treeType}" data-round="${match.key.split(":")[0]}" data-match="${match.key.split(":")[1]}" data-player-id="${id}" style="${zodiacStyle(participant)}" ${!match.a || !match.b ? "disabled" : ""}>${participantSprite(participant, slot, state)}<span class="focus-player__copy${team ? "" : " no-team"}"><strong>${participant?.name ? escapeName(participant.name) : "-"}</strong>${team ? `<em>${escapeHtml(team)}</em>` : ""}</span><small>${selected ? (treeType === "winner" ? "WIN ↑" : "LOSE ↓") : label}</small></button>`;
   }
 
-  function renderBracketMap(tree) {
-    if (!tree.rounds.length) return "";
-    return `<div class="bracket-map" aria-label="${tree.type === "winner" ? "승자조" : "패자조"} 전체 대진 경로">
-      <svg class="bracket-map__lines" aria-hidden="true"></svg>
-      ${tree.rounds.map((round) => {
-        const title = round.index === tree.rounds.length - 1 ? "FINAL" : `ROUND ${round.index + 1}`;
-        return `<section class="bracket-map__round" data-map-round="${round.index}"><h3>${title}</h3><div class="bracket-map__matches">${round.matches.map((match, matchIndex) => {
-          const a = participantById(match.a);
-          const b = participantById(match.b);
-          const picked = participantById(match.selected || match.advancer);
-          return `<article class="bracket-map__match${match.resolved ? " complete" : ""}" data-map-match="${matchIndex}"><span>${a ? escapeName(a.name) : "BYE"}</span><i>VS</i><span>${b ? escapeName(b.name) : "BYE"}</span>${picked ? `<strong>${tree.type === "winner" ? "↑" : "↓"} ${escapeName(picked.name)}</strong>` : ""}</article>`;
-        }).join("")}</div></section>`;
-      }).join("")}
-    </div>`;
-  }
-
-  let bracketLineFrame = 0;
-
-  function drawBracketMapLines(root = refs.bracketStage) {
-    root.querySelectorAll(".bracket-map").forEach((map) => {
-      const svg = map.querySelector(".bracket-map__lines");
-      if (!svg || map.clientWidth === 0 || map.clientHeight === 0) return;
-      svg.replaceChildren();
-      const mapRect = map.getBoundingClientRect();
-      const width = map.scrollWidth;
-      const height = map.scrollHeight;
-      svg.setAttribute("viewBox", `0 0 ${width} ${height}`);
-      svg.setAttribute("width", String(width));
-      svg.setAttribute("height", String(height));
-      svg.style.width = `${width}px`;
-      svg.style.height = `${height}px`;
-      const rounds = [...map.querySelectorAll(".bracket-map__round")];
-      rounds.slice(0, -1).forEach((round, roundIndex) => {
-        const sources = [...round.querySelectorAll(".bracket-map__match")];
-        const targets = [...rounds[roundIndex + 1].querySelectorAll(".bracket-map__match")];
-        sources.forEach((source, sourceIndex) => {
-          const target = targets[Math.floor(sourceIndex / 2)];
-          if (!target) return;
-          const sourceRect = source.getBoundingClientRect();
-          const targetRect = target.getBoundingClientRect();
-          const x1 = sourceRect.right - mapRect.left + map.scrollLeft;
-          const y1 = sourceRect.top + sourceRect.height / 2 - mapRect.top + map.scrollTop;
-          const x2 = targetRect.left - mapRect.left + map.scrollLeft;
-          const y2 = targetRect.top + targetRect.height / 2 - mapRect.top + map.scrollTop;
-          const middleX = x1 + (x2 - x1) / 2;
-          const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
-          path.setAttribute("d", `M ${x1} ${y1} H ${middleX} V ${y2} H ${x2}`);
-          if (source.classList.contains("complete")) path.classList.add("complete");
-          svg.appendChild(path);
-        });
-      });
-    });
-  }
-
-  function scheduleBracketMapLines() {
-    cancelAnimationFrame(bracketLineFrame);
-    bracketLineFrame = requestAnimationFrame(() => {
-      bracketLineFrame = requestAnimationFrame(() => drawBracketMapLines());
-    });
-  }
-
   function renderBracketTree(tree, container) {
     container.classList.remove("bracket-scroll--duel");
     const matchHud = container.closest(".bracket-panel").querySelector(".bracket-current-match");
@@ -784,7 +723,7 @@
 
     if (!activeMatch && tree.champion) {
       const champion = participantById(tree.champion);
-      container.innerHTML = `<div class="focus-complete focus-complete--${tree.type}"><span>${tree.type === "winner" ? "승자조 정복 완료" : "패자조 최종전 완료"}</span><strong>${champion?.name ? escapeName(champion.name) : "-"}</strong><small>${tree.type === "winner" ? "왕좌 접수 · 최종 1위 확정" : "최하위 확정"}</small></div>${renderBracketMap(tree)}`;
+      container.innerHTML = `<div class="focus-complete focus-complete--${tree.type}"><span>${tree.type === "winner" ? "승자조 정복 완료" : "패자조 최종전 완료"}</span><strong>${champion?.name ? escapeName(champion.name) : "-"}</strong><small>${tree.type === "winner" ? "왕좌 접수 · 최종 1위 확정" : "최하위 확정"}</small></div>`;
       return;
     }
 
@@ -806,7 +745,7 @@
         ${bracketPlayerButton(activeMatch.b, activeMatch, tree.type)}
       </div>
       <div class="focus-progress"><i style="width:${Math.round(resolvedInRound / activeRound.matches.length * 100)}%"></i></div>
-    </div>${renderBracketMap(tree)}`;
+    </div>`;
   }
 
   function countPlayableMatches(tree) {
@@ -841,10 +780,7 @@
       $("#finalFirstName").textContent = honorName(participantById(winnerTree.champion)?.name || "");
       $("#finalLastName").textContent = honorName(participantById(loserTree.champion)?.name || "");
     }
-    scheduleBracketMapLines();
   }
-
-  window.addEventListener("resize", scheduleBracketMapLines);
 
   function renderFlowNav(initialDone, winnerDone, loserDone) {
     const stage = tournamentState.uiStage || "initial";
