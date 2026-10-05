@@ -73,7 +73,7 @@ button { color: inherit; }
 
 .registration-view { width: min(1060px, calc(100% - 32px)); margin: auto; padding: 54px 0 80px; }
 
-/* Pre-rendered 3D opening: CRT joins only after the bullseye opens the pixel world. */
+/* Concept-based video opening: CRT joins only after the bullseye opens the pixel world. */
 .intro-pending #registrationView { visibility: hidden; }
 .intro-playing { overflow: hidden; }
 .intro-playing .toast { visibility: hidden; }

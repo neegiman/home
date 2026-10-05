@@ -1,0 +1,50 @@
+{
+  "version": "20261005-concept-motion-v1",
+  "method": "agent-browser Chromium on owned local HTTP preview",
+  "desktop": {
+    "resolution": [1920, 1080], "duration": 12, "samples": 360,
+    "playbackMs": 12044, "decodedFrames": 360, "droppedFrames": 0,
+    "completed": "complete", "fallback": null,
+    "statesObserved": 7, "muted": true, "playsInline": true,
+    "rafStopped": true, "handlersAborted": true, "sourceReleased": true,
+    "registrationInteractive": true
+  },
+  "mobile": {
+    "viewport": [390, 844], "dpr": 3, "resolution": [1080, 1920],
+    "duration": 12, "samples": 360, "playbackMs": 12043,
+    "decodedFrames": 360, "droppedFrames": 0,
+    "completed": "complete", "fallback": null, "statesObserved": 7,
+    "muted": true, "playsInline": true, "rafStopped": true,
+    "handlersAborted": true, "sourceReleased": true,
+    "registrationInteractive": true,
+    "skipButtonRect": { "x": 265.109375, "y": 18, "width": 106.890625, "height": 44 },
+    "rotationKeepsMovie": true, "landscapeFit": "contain", "rotationDoesNotRestart": true
+  },
+  "mobileLite": { "resolution": [720, 1280], "duration": 12, "samples": 360, "sizeBytes": 2034075 },
+  "navigation": {
+    "reloadSkips": true, "repeatRegistrationEntrySkips": true,
+    "tournamentUrlSkipsEvenWithIntroFlag": true,
+    "shareUrlSkipsEvenWithIntroFlag": true,
+    "skippedPagesRequestNoMovie": true,
+    "shareFixtureWinner": "QA 1님", "shareFixtureLast": "QA 4님"
+  },
+  "fallbacks": {
+    "reducedMotionLogoOnly": true, "reducedMotionRequestsNoMovie": true,
+    "autoplayRejectionSimulated": true, "manualPlayButtonShown": true,
+    "posterVisibleBeforePlayback": true,
+    "loadTimeoutPathSimulated": true, "timeoutLogoCompletes": true
+  },
+  "visualReview": {
+    "desktopAndPortraitPoseTransitionsReviewed": true,
+    "doubleBodyAndBowGhostingRemoved": true,
+    "targetGroundAlignmentCorrected": true,
+    "centerOutPixelExpansionReviewed": true,
+    "portraitTitleSafeAreaReviewed": true
+  },
+  "productionFiles": { "h264": true, "yuv420p": true, "fastStart": true, "rootDistParity": true },
+  "limitations": [
+    "2.5D key-pose mesh animation, not newly modeled 3D or AI-generated video.",
+    "Physical iPhone/Safari and real mobile network playback have not been tested.",
+    "Zero dropped frames is a local Chromium observation, not a universal performance guarantee."
+  ]
+}

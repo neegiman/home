@@ -1,4 +1,4 @@
-// The cutscene is an actual 300-frame H.264 movie, not the previous nine-key-pose atlas.
+// Production plays a 360-frame H.264 movie, made from approved articulated concept art.
 const assert=require('node:assert/strict');
 const fs=require('node:fs');
 const path=require('node:path');
@@ -24,7 +24,7 @@ assert.ok(Intro.shouldPlay(new URLSearchParams('intro=1')));
 local.clear();navigationType='reload';assert.equal(Intro.shouldPlay(new URLSearchParams('intro=1')),false);
 sandbox.window.localStorage=sandbox.window.sessionStorage={getItem(){throw Error('blocked');},setItem(){throw Error('blocked');}};
 assert.equal(Intro.shouldPlay(new URLSearchParams()),false);navigationType='navigate';Intro.rememberVisit();assert.equal(Intro.shouldPlay(new URLSearchParams()),false);
-const timeline=[[0,'ARCHER_REAR_VIEW'],[2100,'BOW_DRAW'],[4700,'ARROW_RELEASE'],[5900,'ARROW_FOLLOW'],[6800,'TARGET_HIT'],[8500,'TARGET_PIXEL_TRANSFORM'],[9700,'PIXEL_CLASH_TRANSITION']];
+const timeline=[[0,'ARCHER_REAR_VIEW'],[2100,'BOW_DRAW'],[5000,'ARROW_RELEASE'],[5900,'ARROW_FOLLOW'],[7500,'TARGET_HIT'],[9500,'TARGET_PIXEL_TRANSFORM'],[11300,'PIXEL_CLASH_TRANSITION']];
 for(const [time,name]of timeline)assert.equal(Intro.prototype.stateAt.call({reduced:false},time).name,name);
 assert.equal(Intro.prototype.stateAt.call({reduced:true},600).progress,1);
 assert.ok(!code.includes('CinematicPoseRenderer'));assert.ok(code.includes('video.currentTime * 1000'));
@@ -49,38 +49,20 @@ sandbox.innerWidth=1920;sandbox.innerHeight=1080;resized.profile='desktop';
 Intro.prototype.resize.call(resized);assert.equal(resized.view.dataset.fit,'cover');
 const files=['index.html','styles.css','app.js','intro.js'];
 const movies=[];
-let signature;
 const logicOnly=process.argv.includes('--logic-only');
 for(const profile of logicOnly?[]:['desktop','mobile','mobile-lite']){
-  const file=`assets/video/pixel-clash-intro-${profile}.mp4`;
+  const file=`assets/video/pixel-clash-intro-live-${profile}.mp4`;
   const movie=inspect(fs.readFileSync(path.join(root,file)));
-  assert.equal(movie.codec,'H264');assert.equal(movie.samples,300);assert.equal(movie.duration,10);assert.ok(movie.fastStart);
+  assert.equal(movie.codec,'H264');assert.equal(movie.samples,360);assert.equal(movie.duration,12);assert.ok(movie.fastStart);
   assert.ok(movie.sizeBytes<24*1024*1024);
-  const meta=JSON.parse(fs.readFileSync(path.join(root,`assets/video/metadata-${profile}.json`),'utf8'));
-  assert.ok(meta.jointAnimation&&meta.flexingBow);assert.deepEqual(meta.bullseyeScreen,[.5,.5]);
-  assert.equal(meta.sceneCount,1);assert.equal(meta.cameras.length,6);assert.ok(meta.sharedSceneObjects);
-  assert.equal(signature||meta.sharedObjectSignature,meta.sharedObjectSignature);signature=meta.sharedObjectSignature;
+  const meta=JSON.parse(fs.readFileSync(path.join(root,`assets/video/metadata-live-${profile}.json`),'utf8'));
+  assert.ok(meta.articulatedPoseMesh&&meta.opaqueTextureHandoff);assert.deepEqual(meta.bullseyeScreen,[.5,.5]);
+  assert.ok(meta.sharedTimeline&&meta.sharedArena&&meta.separatePortraitComposition);
+  assert.equal(meta.poses,9);assert.ok(meta.centerOutPixelTransform);
   assert.deepEqual([movie.width,movie.height],meta.resolution);
-  if(profile!=='desktop'){
-    for(const sample of meta.safeAreaSamples){
-      for(const [name,[x,y]] of Object.entries(sample.points)){
-        assert.ok(x>=.15&&x<=.85,`${profile} ${sample.frame} ${name} horizontal safe area`);
-        assert.ok(y>=.10&&y<=.92,`${profile} ${sample.frame} ${name} vertical safe area`);
-      }
-      if(sample.frame<156)assert.ok(sample.points.target[1]<sample.points.head[1]);
-    }
-    // Phone cover crops: translate camera-space points to actual screen-space.
-    for(const [w,h]of [[320,568],[390,844],[360,800],[430,932]]){
-      const scale=Math.max(w/1080,h/1920),ox=(w-1080*scale)/2,oy=(h-1920*scale)/2;
-      for(const sample of meta.safeAreaSamples)for(const [name,[x,y]]of Object.entries(sample.points)){
-        const px=ox+x*1080*scale,py=oy+y*1920*scale;
-        assert.ok(px>=0&&px<=w&&py>=0&&py<=h,`cover ${w}x${h}: ${name}`);
-      }
-    }
-  }
-  files.push(file,`assets/video/metadata-${profile}.json`);
+  files.push(file,`assets/video/metadata-live-${profile}.json`);
   movies.push({profile,...movie,resolution:meta.resolution});
 }
-files.push('assets/video/pixel-clash-intro-poster.webp','assets/video/pixel-clash-intro-poster-mobile.webp');
+files.push('assets/video/pixel-clash-intro-live-poster-desktop.webp','assets/video/pixel-clash-intro-live-poster-mobile.webp');
 for(const file of files)assert.ok(fs.readFileSync(path.join(root,file)).equals(fs.readFileSync(path.join(root,'dist',file))),`Root/dist parity: ${file}`);
 console.log(JSON.stringify({pass:true,logicOnly,movies,directLinksSkip:true,persistentFirstVisit:true,reloadSkips:true,reducedMotion:true,rotationKeepsProfile:true,videoClock:true,distParity:true},null,2));

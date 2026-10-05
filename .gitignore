@@ -5,3 +5,6 @@ output/intro-concepts/
 renders/master/*.blend*
 renders/*.mp4
 renders/previews/
+renders/concept-motion/
+output/intro-concepts-20261005-v1/
+output/intro-concepts-20261005-v1.zip

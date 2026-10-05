@@ -1,13 +1,14 @@
-/* Locally rendered Blender cutscene. Video clock drives the HUD, not PNG poses. */
+/* Approved concept art animated as an articulated 2.5D cutscene, encoded locally.
+   The production page only decodes H.264; it does not run the offline mesh renderer. */
 (() => {
   "use strict";
   const STORAGE_KEY = `pixel-clash:opening:v1:${new URL(".", location.href).pathname}`;
-  const VERSION = "20261005-mobile-safe-v2";
+  const VERSION = "20261005-concept-motion-v1";
   const SEQUENCE = Object.freeze([
-    ["ARCHER_REAR_VIEW", 0, 2000], ["BOW_DRAW", 2000, 4500],
-    ["ARROW_RELEASE", 4500, 5166], ["ARROW_FOLLOW", 5166, 6500],
-    ["TARGET_HIT", 6500, 7333], ["TARGET_PIXEL_TRANSFORM", 7333, 9533],
-    ["PIXEL_CLASH_TRANSITION", 9533, 10000]
+    ["ARCHER_REAR_VIEW", 0, 1850], ["BOW_DRAW", 1850, 4800],
+    ["ARROW_RELEASE", 4800, 5500], ["ARROW_FOLLOW", 5500, 7300],
+    ["TARGET_HIT", 7300, 8300], ["TARGET_PIXEL_TRANSFORM", 8300, 11100],
+    ["PIXEL_CLASH_TRANSITION", 11100, 12000]
   ]);
   const GLYPHS = {
     P:["11110","10001","10001","11110","10000","10000","10000"],
@@ -21,7 +22,7 @@
     H:["10001","10001","10001","11111","10001","10001","10001"]
   };
   const clamp = n => Math.max(0, Math.min(1, n));
-  class Rendered3DIntroAnimation {
+  class ConceptVideoIntroAnimation {
     static active = null;
     static seen = false;
     static selectMovie({ width = innerWidth, height = innerHeight, dpr = devicePixelRatio || 1,
@@ -54,10 +55,10 @@
       this.onReveal = onReveal || (() => {}); this.onComplete = onComplete || (() => {});
       this.controller = new AbortController(); this.running = false; this.frameId = 0; this.revealed = false;
       this.reduced = matchMedia("(prefers-reduced-motion: reduce)").matches;
-      this.duration = this.reduced ? 600 : 10000;
+      this.duration = this.reduced ? 600 : 12000;
       this.elapsed = 0; this.ready = false; this.resumeOnVisible = false;
       // Choose once per entry. A rotation never swaps source or restarts playback.
-      const movie = Rendered3DIntroAnimation.selectMovie();
+      const movie = ConceptVideoIntroAnimation.selectMovie();
       this.profile = movie.profile; this.quality = movie.quality;
       const { signal } = this.controller;
       skipButton.addEventListener("click", () => this.finish("skip"), { signal });
@@ -91,11 +92,11 @@
     }
     start() {
       if (this.running) return;
-      Rendered3DIntroAnimation.active?.finish("replaced");
-      Rendered3DIntroAnimation.active = this; Rendered3DIntroAnimation.rememberVisit();
+      ConceptVideoIntroAnimation.active?.finish("replaced");
+      ConceptVideoIntroAnimation.active = this; ConceptVideoIntroAnimation.rememberVisit();
       this.running = true; this.view.hidden = false; this.skipButton.hidden = false; this.caption.hidden = false;
       this.playButton.hidden = true; this.canvas.dataset.running = "true";
-      this.canvas.dataset.renderMode = this.reduced ? "reduced-logo" : "rendered-3d-video";
+      this.canvas.dataset.renderMode = this.reduced ? "reduced-logo" : "concept-layer-video";
       this.view.dataset.profile = this.profile;
       this.view.dataset.quality = this.quality; this.view.dataset.ready = "false";
       delete this.canvas.dataset.fallback;
@@ -107,8 +108,8 @@
         this.video.hidden = false; this.video.muted = true; this.video.defaultMuted = true;
         this.video.playsInline = true; this.video.autoplay = true; this.video.preload = "auto";
         // Direct tournament/share links and reduced motion never request either movie.
-        this.video.poster = `assets/video/pixel-clash-intro-poster${this.profile === "mobile" ? "-mobile" : ""}.webp?v=${VERSION}`;
-        this.video.src = `assets/video/pixel-clash-intro-${this.quality}.mp4?v=${VERSION}`;
+        this.video.poster = `assets/video/pixel-clash-intro-live-poster-${this.profile}.webp?v=${VERSION}`;
+        this.video.src = `assets/video/pixel-clash-intro-live-${this.quality}.mp4?v=${VERSION}`;
         this.video.load(); this.caption.textContent = "경기장을 준비하는 중";
         this.assetTimer = setTimeout(() => this.fallback("load-timeout"), 8000); this.play();
       }
@@ -189,8 +190,8 @@
       else {
         // The poster stays visible while video data is pending.
         this.video.style.opacity=this.ready?String(clamp(this.elapsed/400)):"1";
-        document.body.style.setProperty("--intro-crt",String(this.elapsed>=7333?.14*clamp((this.elapsed-7333)/2200):0));
-        if(this.elapsed>=9533)this.drawTitle(progress);
+        document.body.style.setProperty("--intro-crt",String(this.elapsed>=8300?.14*clamp((this.elapsed-8300)/2450):0));
+        // The title is baked into both camera compositions; don't cover it with a second logo.
       }
       if(name==="PIXEL_CLASH_TRANSITION"&&progress>.65&&!this.revealed){this.revealed=true;this.onReveal();}
       if(this.revealed){
@@ -206,10 +207,10 @@
       this.canvas.dataset.running="false";this.canvas.dataset.state="REGISTRATION";this.canvas.width=this.canvas.height=1;
       document.documentElement.classList.remove("intro-pending");document.body.classList.remove("intro-playing");
       document.body.style.removeProperty("--intro-crt");
-      if(Rendered3DIntroAnimation.active===this)Rendered3DIntroAnimation.active=null;
+      if(ConceptVideoIntroAnimation.active===this)ConceptVideoIntroAnimation.active=null;
       this.onComplete(reason);
     }
   }
-  window.Rendered3DIntroAnimation=Rendered3DIntroAnimation;window.IntroAnimation=Rendered3DIntroAnimation;
-  if(Rendered3DIntroAnimation.shouldPlay())document.documentElement.classList.add("intro-pending");
+  window.ConceptVideoIntroAnimation=ConceptVideoIntroAnimation;window.IntroAnimation=ConceptVideoIntroAnimation;
+  if(ConceptVideoIntroAnimation.shouldPlay())document.documentElement.classList.add("intro-pending");
 })();

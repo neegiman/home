@@ -1,0 +1,36 @@
+{
+  "mode": "approved-concept 2.5D layered video",
+  "generation": "built-in image_gen",
+  "art": "assets/intro/concept-live-v1",
+  "duration": 12,
+  "fps": 30,
+  "resolution": [
+    1920,
+    1080
+  ],
+  "frames": 360,
+  "sharedTimeline": true,
+  "sharedArena": true,
+  "separatePortraitComposition": true,
+  "poses": 9,
+  "articulatedPoseMesh": true,
+  "opaqueTextureHandoff": true,
+  "bullseyeScreen": [
+    0.5,
+    0.5
+  ],
+  "centerOutPixelTransform": true,
+  "sound": false,
+  "atoms": [
+    "ftyp",
+    "moov",
+    "free",
+    "mdat"
+  ],
+  "sizeBytes": 5908658,
+  "fastStart": true,
+  "codec": "H264",
+  "width": 1920,
+  "height": 1080,
+  "samples": 360
+}
