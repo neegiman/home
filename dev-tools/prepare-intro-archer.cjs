@@ -27,12 +27,14 @@ async function main() {
   const pixels=Buffer.alloc(384*384*4),metadata=[];
   for(let index=0;index<9;index++){
     const f=frames[index],width=Math.round(f.width*scale),height=Math.round(f.height*scale);
-    const left=Math.max(3,Math.min(125-width,Math.round(45-(f.headX-f.left)*scale))),top=124-height;
+    const left=Math.max(3,Math.min(125-width,45-Math.round((f.headX-f.left)*scale))),top=124-height;
     const sprite=await sharp(input).extract({left:f.left,top:f.top,width:f.width,height:f.height}).resize(width,height,{kernel:"nearest"}).ensureAlpha().raw().toBuffer();
     for(let y=0;y<height;y++)sprite.copy(pixels,(((Math.floor(index/3)*128+top+y)*384)+index%3*128+left)*4,y*width*4,(y+1)*width*4);
     metadata.push({name:names[index],bounds:{left,top,width,height},headX:Math.round(left+(f.headX-f.left)*scale),ground:124});
   }
-  const output=path.resolve(__dirname,"../assets/characters/intro-archer-v1.png");
+  const basename=process.argv[3]||"intro-archer-v1";
+  assert.match(basename,/^intro-archer[-a-z0-9]+$/,"Use a versioned local archer asset basename");
+  const output=path.resolve(__dirname,"../assets/characters",basename+".png");
   await sharp(pixels,{raw:{width:384,height:384,channels:4}}).png().toFile(output);
   await fs.writeFile(output.replace(/\.png$/,".json"),JSON.stringify({cell:128,columns:3,rows:3,ground:124,frames:metadata},null,2)+"\n");
   console.log(JSON.stringify({output,frames:metadata,scale}));

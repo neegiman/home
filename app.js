@@ -1949,6 +1949,7 @@
       });
       opening.start();
     } else {
+      window.IntroAnimation?.rememberVisit();
       document.documentElement.classList.remove("intro-pending");
       showOnly("registration");
     }

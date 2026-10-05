@@ -1,0 +1,21 @@
+PIXEL CLASH archer clothing color revision
+Mode: built-in imagegen edit, identity preservation.
+Target: dev-tools/intro-archer-reference-v1.png.
+Generated master: dev-tools/intro-archer-taegeuk-reference-v2.png.
+Runtime: assets/characters/intro-archer-taegeuk-v2.png (128x128 x 9).
+Mechanical preparation: original alpha, nearest-neighbor slicing/reduction,
+same head / feet anchors; no code recoloring or geometry transformations.
+
+Submitted prompt:
+Use case: identity-preserve.
+Input image 1: edit target, the project's existing transparent 3x3 archery sprite atlas.
+Primary request: recolor ONLY the archer's clothing in all nine frames with a restrained South Korean Taegeukgi-inspired palette. White / warm cream is the main vest and shirt color; small deep red and cobalt blue paired panels or trim accents; charcoal-black trousers, gloves/bracers and boots. Keep the original brown hair, natural skin, golden wooden bow and original arrows. The red and blue accents should be easy to see in a close-up, but the outfit remains an original adventure archer rather than a flag costume. No logo or lettering, no large flag backdrop, no additional symbols or props.
+CRITICAL INVARIANTS: preserve all nine exact archery poses in their same 3-column by 3-row reading order: idle, draw01, draw02, draw03, draw04, full draw05, release01, release02, release03. Preserve original face, expression, silhouette, limb anatomy, bowstring position, arrow position, per-cell character scale, fixed boot baseline, transparent padding and the dark one-pixel outlines. Do not alter poses or replace frames with duplicates. Release frames still contain NO nocked arrow. Do not crop hands, bows, heads, or feet. Same adult proportions, same pixel density, same shadow levels, same crisp retro game sprite art. Change clothing colors only, not sprite geometry. True transparent background (RGBA), no shadows outside character, no text, no grid, no scene, no gradients, no 3D, no high resolution repaint. This atlas is already approved animation geometry: DO NOT REDESIGN IT.
+
+Entry policy:
+The registration branch remembers the opening visit in browser-local storage,
+with session storage and memory fallback. Existing session flags remain valid.
+Reload, mode=tournament and share links never play the opening.
+The production registration has no replay button. Explicit ?intro=1 navigation
+remains a development preview, but refreshing that URL also skips.
+Skipping counts as having seen the opening; skip control stays at top right.

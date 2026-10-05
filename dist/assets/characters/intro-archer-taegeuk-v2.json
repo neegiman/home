@@ -1,0 +1,107 @@
+{
+  "cell": 128,
+  "columns": 3,
+  "rows": 3,
+  "ground": 124,
+  "frames": [
+    {
+      "name": "archer-idle",
+      "bounds": {
+        "left": 14,
+        "top": 11,
+        "width": 78,
+        "height": 113
+      },
+      "headX": 45,
+      "ground": 124
+    },
+    {
+      "name": "archer-draw-01",
+      "bounds": {
+        "left": 15,
+        "top": 10,
+        "width": 84,
+        "height": 114
+      },
+      "headX": 45,
+      "ground": 124
+    },
+    {
+      "name": "archer-draw-02",
+      "bounds": {
+        "left": 16,
+        "top": 9,
+        "width": 91,
+        "height": 115
+      },
+      "headX": 45,
+      "ground": 124
+    },
+    {
+      "name": "archer-draw-03",
+      "bounds": {
+        "left": 17,
+        "top": 7,
+        "width": 93,
+        "height": 117
+      },
+      "headX": 45,
+      "ground": 124
+    },
+    {
+      "name": "archer-draw-04",
+      "bounds": {
+        "left": 15,
+        "top": 6,
+        "width": 96,
+        "height": 118
+      },
+      "headX": 45,
+      "ground": 124
+    },
+    {
+      "name": "archer-draw-05",
+      "bounds": {
+        "left": 14,
+        "top": 7,
+        "width": 98,
+        "height": 117
+      },
+      "headX": 45,
+      "ground": 124
+    },
+    {
+      "name": "archer-release-01",
+      "bounds": {
+        "left": 11,
+        "top": 6,
+        "width": 91,
+        "height": 118
+      },
+      "headX": 45,
+      "ground": 124
+    },
+    {
+      "name": "archer-release-02",
+      "bounds": {
+        "left": 10,
+        "top": 9,
+        "width": 93,
+        "height": 115
+      },
+      "headX": 45,
+      "ground": 124
+    },
+    {
+      "name": "archer-release-03",
+      "bounds": {
+        "left": 16,
+        "top": 9,
+        "width": 85,
+        "height": 115
+      },
+      "headX": 45,
+      "ground": 124
+    }
+  ]
+}

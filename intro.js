@@ -25,10 +25,22 @@
 
   class IntroAnimation {
     static active = null;
+    static seen = false;
+    static rememberVisit() {
+      IntroAnimation.seen = true;
+      for (const name of ["localStorage", "sessionStorage"]) {
+        try { window[name].setItem(STORAGE_KEY, "seen"); } catch (_) { /* Private browsing / blocked storage is optional. */ }
+      }
+    }
     static shouldPlay(params = new URLSearchParams(location.search)) {
       if (params.get("mode") === "tournament" || params.has("share")) return false;
-      if (params.get("intro") === "1") return true; // Development replay, no extra production button.
-      try { return sessionStorage.getItem(STORAGE_KEY) !== "seen"; } catch (_) { return true; }
+      // Reload must never restart the opening, even if storage is unavailable.
+      if (window.performance?.getEntriesByType?.("navigation")?.[0]?.type === "reload") return false;
+      if (params.get("intro") === "1") return true; // Explicit debug navigation only; reload still skips.
+      for (const name of ["localStorage", "sessionStorage"]) {
+        try { if (window[name].getItem(STORAGE_KEY) === "seen") return false; } catch (_) { /* Check the other store. */ }
+      }
+      return !IntroAnimation.seen;
     }
 
     constructor(canvas, { view, skipButton, caption, onReveal, onComplete } = {}) {
@@ -54,7 +66,7 @@
       this.archer = new Image();
       this.arena = new Image();
       this.archer.decoding = this.arena.decoding = "async";
-      this.archer.src = "assets/characters/intro-archer-v1.png";
+      this.archer.src = "assets/characters/intro-archer-taegeuk-v2.png";
       this.arena.src = "assets/backgrounds/champion-arena.png";
       this.logo = this.createLogo();
       const { signal } = this.controller;
@@ -73,7 +85,7 @@
       IntroAnimation.active?.finish("replaced");
       IntroAnimation.active = this;
       this.running = true;
-      try { sessionStorage.setItem(STORAGE_KEY, "seen"); } catch (_) { /* Storage is optional. */ }
+      IntroAnimation.rememberVisit();
       document.documentElement.classList.remove("intro-pending");
       document.body.classList.add("intro-playing");
       this.view.hidden = false;
