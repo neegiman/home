@@ -1,0 +1,116 @@
+{
+  "cell": 128,
+  "columns": 4,
+  "rows": 3,
+  "ground": 124,
+  "frames": [
+    {
+      "bounds": {
+        "left": 37,
+        "top": 18,
+        "width": 58,
+        "height": 106
+      },
+      "anchor": 64
+    },
+    {
+      "bounds": {
+        "left": 37,
+        "top": 19,
+        "width": 57,
+        "height": 105
+      },
+      "anchor": 64
+    },
+    {
+      "bounds": {
+        "left": 36,
+        "top": 18,
+        "width": 60,
+        "height": 106
+      },
+      "anchor": 64
+    },
+    {
+      "bounds": {
+        "left": 37,
+        "top": 19,
+        "width": 55,
+        "height": 105
+      },
+      "anchor": 64
+    },
+    {
+      "bounds": {
+        "left": 41,
+        "top": 49,
+        "width": 71,
+        "height": 75
+      },
+      "anchor": 64
+    },
+    {
+      "bounds": {
+        "left": 42,
+        "top": 48,
+        "width": 69,
+        "height": 76
+      },
+      "anchor": 64
+    },
+    {
+      "bounds": {
+        "left": 41,
+        "top": 53,
+        "width": 73,
+        "height": 71
+      },
+      "anchor": 64
+    },
+    {
+      "bounds": {
+        "left": 39,
+        "top": 50,
+        "width": 71,
+        "height": 74
+      },
+      "anchor": 64
+    },
+    {
+      "bounds": {
+        "left": 38,
+        "top": 17,
+        "width": 52,
+        "height": 107
+      },
+      "anchor": 64
+    },
+    {
+      "bounds": {
+        "left": 36,
+        "top": 18,
+        "width": 55,
+        "height": 106
+      },
+      "anchor": 64
+    },
+    {
+      "bounds": {
+        "left": 35,
+        "top": 19,
+        "width": 62,
+        "height": 105
+      },
+      "anchor": 64
+    },
+    {
+      "bounds": {
+        "left": 33,
+        "top": 21,
+        "width": 55,
+        "height": 103
+      },
+      "anchor": 64
+    }
+  ]
+}

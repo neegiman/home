@@ -128,7 +128,8 @@ button { color: inherit; }
 .participant-card { min-width: 0; display: grid; grid-template-columns: 39px 58px 1fr 34px; align-items: center; min-height: 72px; border-left: 4px solid var(--participant-accent, var(--blue)); background: #0b112f; box-shadow: inset 0 0 0 1px #263568; animation: cardIn .25s steps(4) both; }
 .participant-card__number { align-self: stretch; display: grid; place-items: center; color: var(--gold); background: #151e49; font-size: 11px; }
 .participant-card__avatar { width: 52px; aspect-ratio: 1; padding: 0; border: 2px solid var(--fighter-accent, var(--blue)); background-color: #111735; cursor: pointer; filter: var(--zodiac-tone, none) drop-shadow(3px 4px 0 rgba(2,4,16,.55)); transition: transform .15s steps(2), filter .15s steps(2); }
-.participant-card__avatar:hover, .participant-card__avatar:focus-visible { transform: translateY(-2px) scale(1.06); filter: var(--zodiac-tone, none) drop-shadow(3px 5px 0 rgba(2,4,16,.65)) brightness(1.12); outline: 2px solid var(--gold); outline-offset: 2px; }
+.participant-card__avatar { display: block; cursor: default; }
+.avatar-assignment-note { margin: 12px 0 0; color: #8995b7; font-size: 11px; line-height: 1.6; }
 .participant-card__copy { padding: 8px 11px; min-width: 0; }
 .participant-card__copy strong, .participant-card__copy span { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .participant-card__copy strong { font-size: 13px; }
@@ -798,4 +799,58 @@ body.result-mode { overflow: hidden; }
 
   .last-place-stage { bottom: 10px; }
   .result-intro > .result-skip { top: 12px; right: 12px; bottom: auto; }
+}
+
+/* Human sheets: row 0 walk, row 1 seated cry, row 2 idle/victory. */
+.zodiac-sprite,
+.trainer-sprite,
+.battle-trainer,
+.last-place-character {
+  background-image: var(--character-sheet);
+  background-size: 400% 300%;
+  background-position: 0% 100%;
+  background-repeat: no-repeat;
+}
+.battle-trainer,
+.battle-trainer--b { animation: none; }
+.battle-trainer[data-state="victory"],
+.battle-trainer--b[data-state="victory"],
+.combatant.selecting .battle-trainer,
+.focus-player.selected:not(.crying) .battle-trainer { animation: humanVictoryFrames 1.2s step-start infinite; }
+.focus-player.crying .battle-trainer,
+.combatant.dropping .battle-trainer { animation: humanCryFrames 1.04s step-start infinite; }
+.focus-player.crying::before,
+.focus-player.crying::after { content: none; }
+.result-view.playing .champion-visual .trainer-sprite[data-state="standing"] { animation: none; transform: translateX(-50%); }
+.result-view.playing .champion-visual .trainer-sprite[data-state="victory"],
+.result-view.playing .champion-visual .trainer-sprite[data-state="triumph"],
+.result-view.reveal-now .champion-visual .trainer-sprite {
+  transform: translateX(-50%);
+  animation: humanVictoryFrames 1.2s step-start infinite;
+}
+.last-place-character { transform: scaleX(-1); animation: humanCryFrames 1.04s step-start infinite; }
+.last-place-stage { --human-cry-size: clamp(160px, 16vw, 210px); }
+.last-place-name { position: absolute; bottom: calc(var(--human-cry-size) * (1 - var(--cry-headroom, .42)) + 7px); margin: 0; }
+@media (max-width: 700px) { .last-place-stage { --human-cry-size: min(46vw, 190px); } }
+@keyframes humanVictoryFrames {
+  0%, 100% { background-position: 33.333333% 100%; }
+  25%, 70% { background-position: 66.666667% 100%; }
+  50% { background-position: 100% 100%; }
+}
+@keyframes humanCryFrames {
+  0%, 100% { background-position: 0% 50%; }
+  25% { background-position: 33.333333% 50%; }
+  50% { background-position: 66.666667% 50%; }
+  75% { background-position: 100% 50%; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .combatant.selecting .battle-trainer,
+  .focus-player.selected:not(.crying) .battle-trainer,
+  .battle-trainer[data-state="victory"],
+  .result-view.playing .champion-visual .trainer-sprite[data-state="victory"],
+  .result-view.playing .champion-visual .trainer-sprite[data-state="triumph"],
+  .result-view.reveal-now .champion-visual .trainer-sprite { animation: none; background-position: 66.666667% 100%; }
+  .last-place-character,
+  .focus-player.crying .battle-trainer,
+  .combatant.dropping .battle-trainer { animation: none; background-position: 33.333333% 50%; }
 }

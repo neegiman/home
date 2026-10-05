@@ -45,53 +45,13 @@
     toast: $("#toast")
   };
 
-  const ZODIAC_CHARACTERS = Object.freeze([
-    { key: "rat", label: "쥐", accent: "#43d6d1" },
-    { key: "ox", label: "소", accent: "#d39a45" },
-    { key: "tiger", label: "호랑이", accent: "#ff8a32" },
-    { key: "rabbit", label: "토끼", accent: "#ff809f" },
-    { key: "dragon", label: "용", accent: "#48c77b" },
-    { key: "snake", label: "뱀", accent: "#a86de2" },
-    { key: "horse", label: "말", accent: "#438de8" },
-    { key: "goat", label: "양", accent: "#48cbbf" },
-    { key: "monkey", label: "원숭이", accent: "#f5b431" },
-    { key: "rooster", label: "닭", accent: "#ef5c4e" },
-    { key: "dog", label: "개", accent: "#3f74cf" },
-    { key: "boar", label: "돼지", accent: "#d75a7b" }
-  ]);
-  // The twelve source cells have different transparent padding and visible feet.
-  // These profiles keep every animal planted on the same stage line and give
-  // bulky/long silhouettes a safer fall and bow range.
-  const ZODIAC_MOTION_PROFILES = Object.freeze([
-    { scale: 1.14, center: 179 / 362, top: 72 / 362, bottom: 1, centerShift: .55, groundShift: 0, bowTilt: 38, bowSquash: .84, fallRotate: 58, fallSquash: .80 },
-    { scale: .97, center: 173.5 / 362, top: 10 / 362, bottom: 1, centerShift: 2.07, groundShift: 0, bowTilt: 28, bowSquash: .90, fallRotate: 50, fallSquash: .84 },
-    { scale: 1.04, center: 184 / 362, top: 40 / 362, bottom: 1, centerShift: -.83, groundShift: 0, bowTilt: 34, bowSquash: .87, fallRotate: 60, fallSquash: .80 },
-    { scale: .99, center: 188 / 362, top: 20 / 362, bottom: 1, centerShift: -1.93, groundShift: 0, bowTilt: 36, bowSquash: .85, fallRotate: 56, fallSquash: .80 },
-    { scale: .93, center: 190.5 / 362, top: 0, bottom: 1, centerShift: -2.62, groundShift: 0, bowTilt: 28, bowSquash: .90, fallRotate: 48, fallSquash: .85 },
-    { scale: .93, center: 180.5 / 362, top: 0, bottom: 1, centerShift: .14, groundShift: 0, bowTilt: 24, bowSquash: .82, fallRotate: 42, fallSquash: .76 },
-    { scale: .94, center: 175.5 / 362, top: 0, bottom: 1, centerShift: 1.52, groundShift: 0, bowTilt: 32, bowSquash: .87, fallRotate: 56, fallSquash: .81 },
-    { scale: .94, center: 191.5 / 362, top: 0, bottom: 357 / 362, centerShift: -2.90, groundShift: 1.38, bowTilt: 30, bowSquash: .90, fallRotate: 50, fallSquash: .84 },
-    { scale: .98, center: 166 / 362, top: 0, bottom: 345 / 362, centerShift: 4.14, groundShift: 4.70, bowTilt: 36, bowSquash: .86, fallRotate: 60, fallSquash: .79 },
-    { scale: .97, center: 183 / 362, top: 0, bottom: 349 / 362, centerShift: -.55, groundShift: 3.59, bowTilt: 32, bowSquash: .88, fallRotate: 56, fallSquash: .81 },
-    { scale: .98, center: 190 / 362, top: 0, bottom: 345 / 362, centerShift: -2.49, groundShift: 4.70, bowTilt: 30, bowSquash: .89, fallRotate: 50, fallSquash: .83 },
-    { scale: .99, center: 192.5 / 362, top: 3 / 362, bottom: 345 / 362, centerShift: -3.18, groundShift: 4.70, bowTilt: 28, bowSquash: .90, fallRotate: 52, fallSquash: .84 }
-  ]);
+  const humanCharacters = window.HumanCharacters;
+  // Legacy CSS variable names remain compatible with the existing game HUD.
+  const ZODIAC_CHARACTERS = humanCharacters.catalog;
+  const ZODIAC_MOTION_PROFILES = ZODIAC_CHARACTERS.map(() => ({ scale: 1, center: .5, top: 4 / 128, bottom: humanCharacters.ground, centerShift: 0, groundShift: 0, fallRotate: 48, fallSquash: .9 }));
   const ZODIAC_COLUMNS = 4;
   const ZODIAC_ROWS = 3;
-  const ZODIAC_VARIANTS = Object.freeze([
-    { hue: 0, saturation: 1, brightness: 1, accent: null },
-    { hue: 30, saturation: 1.18, brightness: 1.04, accent: "#ff6b6b" },
-    { hue: 60, saturation: 1.12, brightness: 1.02, accent: "#f4c84a" },
-    { hue: 90, saturation: 1.16, brightness: 1.03, accent: "#74d95d" },
-    { hue: 120, saturation: 1.12, brightness: 1.02, accent: "#42d29b" },
-    { hue: 150, saturation: 1.14, brightness: 1.05, accent: "#49d3d8" },
-    { hue: 180, saturation: 1.08, brightness: 1.04, accent: "#52a9f5" },
-    { hue: 210, saturation: 1.15, brightness: 1.03, accent: "#687cf1" },
-    { hue: 240, saturation: 1.12, brightness: 1.05, accent: "#9b70ee" },
-    { hue: 270, saturation: 1.18, brightness: 1.04, accent: "#d76de5" },
-    { hue: 300, saturation: 1.15, brightness: 1.03, accent: "#f06eb2" },
-    { hue: 330, saturation: 1.18, brightness: 1.02, accent: "#f16f82" }
-  ]);
+  const ZODIAC_VARIANTS = humanCharacters.variants;
 
   let draftParticipants = [];
   let tournamentState = null;
@@ -107,36 +67,21 @@
   const characterAssets = {
     clown: new Image(),
     clownJuggle: new Image(),
-    zodiac: new Image(),
     drawStage: new Image(),
     championArena: new Image()
   };
   characterAssets.clown.decoding = "async";
   characterAssets.clownJuggle.decoding = "async";
-  characterAssets.zodiac.decoding = "async";
   characterAssets.drawStage.decoding = "async";
   characterAssets.championArena.decoding = "async";
   characterAssets.clown.src = "assets/characters/clown-spritesheet.png";
   characterAssets.clownJuggle.src = "assets/characters/clown-juggle-8f.png";
-  characterAssets.zodiac.src = "assets/characters/zodiac-character-concept-v1.png";
   characterAssets.drawStage.src = "assets/backgrounds/draw-stage.png";
   characterAssets.championArena.src = "assets/backgrounds/champion-arena.png";
 
-  const zodiacMotionAssets = Object.fromEntries(ZODIAC_CHARACTERS.map(({ key }) => {
-    const image = new Image();
-    image.decoding = "async";
-    image.src = `assets/characters/zodiac-motion-v1/${key}.png`;
-    return [key, image];
-  }));
+  const zodiacMotionAssets = Object.fromEntries(ZODIAC_CHARACTERS.map(({ key }, character) => [key, humanCharacters.image({ character, colorVariant: 0 })]));
 
-  const zodiacCryAssets = Object.fromEntries(ZODIAC_CHARACTERS.map(({ key }) => {
-    const image = new Image();
-    image.decoding = "async";
-    image.src = `assets/characters/zodiac-cry-v1/${key}.png`;
-    return [key, image];
-  }));
-
-  const visualAssetsReady = Promise.allSettled([...Object.values(characterAssets), ...Object.values(zodiacMotionAssets), ...Object.values(zodiacCryAssets)].map((image) => {
+  const visualAssetsReady = Promise.allSettled([...Object.values(characterAssets), ...Object.values(zodiacMotionAssets)].map((image) => {
     if (image.complete && image.naturalWidth) return Promise.resolve();
     return new Promise((resolve) => {
       image.addEventListener("load", resolve, { once: true });
@@ -146,7 +91,7 @@
 
   function waitForVisualAssets(maxWait = 6000) {
     return Promise.race([
-      visualAssetsReady,
+      Promise.all([visualAssetsReady, humanCharacters.readyForRoster(tournamentState?.participants || draftParticipants)]),
       new Promise((resolve) => setTimeout(resolve, maxWait))
     ]);
   }
@@ -209,45 +154,23 @@
   }
 
   function nextAvailableColorVariant(participants, characterIndex, excludedId = "") {
-    const used = new Set(participants
-      .filter((participant) => participant.id !== excludedId && participantCharacterIndex(participant) === characterIndex)
-      .map((participant) => normalizeColorVariant(participant.colorVariant)));
-    for (let index = 0; index < ZODIAC_VARIANTS.length; index += 1) {
-      if (!used.has(index)) return index;
-    }
-    return used.size % ZODIAC_VARIANTS.length;
+    return humanCharacters.pickColor(participants.filter((participant) => participant.id !== excludedId), characterIndex);
   }
 
   function normalizeParticipantRoster(participants) {
-    const usedByCharacter = new Map();
-    return participants.map((participant, index) => {
-      const character = participantCharacterIndex(participant, index);
-      const used = usedByCharacter.get(character) || new Set();
-      let colorVariant = normalizeColorVariant(participant.colorVariant);
-      if (used.has(colorVariant)) {
-        colorVariant = ZODIAC_VARIANTS.findIndex((_, variantIndex) => !used.has(variantIndex));
-        if (colorVariant < 0) colorVariant = used.size % ZODIAC_VARIANTS.length;
-      }
-      used.add(colorVariant);
-      usedByCharacter.set(character, used);
-      return { ...participant, character, colorVariant };
-    });
+    return humanCharacters.normalizeRoster(participants);
   }
 
   function zodiacStyle(participant, fallback) {
-    const character = participantCharacter(participant, fallback);
-    const variant = participantColorVariant(participant);
-    const motion = zodiacMotionProfile(participant, fallback);
-    const x = character.column * 100 / (ZODIAC_COLUMNS - 1);
-    const y = character.row * 100 / (ZODIAC_ROWS - 1);
-    const accent = variant.accent || character.accent;
-    return `--zodiac-x:${x}%;--zodiac-y:${y}%;--zodiac-hue:${variant.hue}deg;--zodiac-saturation:${variant.saturation};--zodiac-brightness:${variant.brightness};--zodiac-tone:hue-rotate(${variant.hue}deg) saturate(${variant.saturation}) brightness(${variant.brightness});--fighter-accent:${accent};--zodiac-motion-sheet:url("assets/characters/zodiac-motion-v1/${character.key}.png");--zodiac-motion-scale:${motion.scale};--zodiac-center-shift:${motion.centerShift}%;--zodiac-ground-shift:${motion.groundShift}%;--zodiac-bow-tilt:${motion.bowTilt}deg;--zodiac-bow-half:${motion.bowTilt / 2}deg;--zodiac-bow-squash:${motion.bowSquash}`;
+    return humanCharacters.style(participant, fallback);
   }
 
   function applyZodiacCharacter(element, participant, roleLabel) {
     const character = participantCharacter(participant);
     element.classList.add("zodiac-sprite");
     element.style.cssText = zodiacStyle(participant);
+    const seatedStage = element.closest(".last-place-stage");
+    if (seatedStage) seatedStage.style.setProperty("--cry-headroom", element.style.getPropertyValue("--cry-headroom"));
     element.dataset.character = character.key;
     const variant = participantColorVariant(participant);
     element.dataset.colorVariant = String(variant.index);
@@ -255,14 +178,7 @@
   }
 
   function nextAvailableCharacter(participants, current = -1, excludedId = "") {
-    const used = new Set(participants
-      .filter((participant) => participant.id !== excludedId)
-      .map((participant, index) => participantCharacterIndex(participant, index)));
-    for (let step = 1; step <= ZODIAC_CHARACTERS.length; step += 1) {
-      const candidate = (current + step + ZODIAC_CHARACTERS.length) % ZODIAC_CHARACTERS.length;
-      if (!used.has(candidate)) return candidate;
-    }
-    return (current + 1 + ZODIAC_CHARACTERS.length) % ZODIAC_CHARACTERS.length;
+    return humanCharacters.pickBalanced(participants.filter((participant) => participant.id !== excludedId));
   }
 
   function participantSprite(participant, slot = "a", state = "standing") {
@@ -414,7 +330,7 @@
       return `
         <article class="participant-card${team ? "" : " no-team"}" style="--participant-accent:${accent}">
           <span class="participant-card__number">${String(index + 1).padStart(2, "0")}</span>
-          <button class="participant-card__avatar zodiac-sprite" type="button" data-cycle-character="${participant.id}" data-character="${character.key}" data-color-variant="${variant.index}" style="${zodiacStyle(participant, index)}" aria-label="${escapeName(participant.name)} 캐릭터 변경 · 현재 ${character.label} 컬러 ${variant.index + 1}" title="캐릭터 변경: ${character.label} · 컬러 ${variant.index + 1}"></button>
+          <span class="participant-card__avatar zodiac-sprite" data-character="${character.key}" data-color-variant="${variant.index}" style="${zodiacStyle(participant, index)}" role="img" aria-label="${escapeName(participant.name)} 자동 배정 캐릭터 · ${character.label} · ${variant.label}"></span>
           <div class="participant-card__copy">
             <strong>${escapeName(participant.name)}</strong>
             <span>${team ? `${escapeHtml(team)} · ` : ""}${character.label}${variant.index ? ` · 컬러 ${variant.index + 1}` : ""}</span>
@@ -447,15 +363,6 @@
   });
 
   refs.participantList.addEventListener("click", (event) => {
-    const characterButton = event.target.closest("[data-cycle-character]");
-    if (characterButton) {
-      const participant = draftParticipants.find((item) => item.id === characterButton.dataset.cycleCharacter);
-      if (!participant) return;
-      participant.character = nextAvailableCharacter(draftParticipants, participantCharacterIndex(participant), participant.id);
-      participant.colorVariant = nextAvailableColorVariant(draftParticipants, participant.character, participant.id);
-      renderDraftParticipants();
-      return;
-    }
     const button = event.target.closest("[data-remove-id]");
     if (!button) return;
     draftParticipants = draftParticipants.filter((participant) => participant.id !== button.dataset.removeId);
@@ -1165,29 +1072,18 @@
     }
 
     function drawZodiacSprite(participant, x, feetY, size, options = {}) {
-      const character = participantCharacter(participant);
-      const variant = participantColorVariant(participant);
-      const motion = zodiacMotionProfile(participant);
-      const motionSheet = zodiacMotionAssets[character.key];
-      const crySheet = zodiacCryAssets[character.key];
-      const useCryFrame = Number.isInteger(options.cryFrame) && crySheet?.complete && crySheet.naturalWidth;
-      const useMotionFrame = !useCryFrame && Number.isInteger(options.motionFrame) && motionSheet?.complete && motionSheet.naturalWidth;
-      const sheet = useCryFrame ? crySheet : useMotionFrame ? motionSheet : characterAssets.zodiac;
+      const sheet = humanCharacters.image(participant);
       if (!sheet.complete || !sheet.naturalWidth) return;
-      const cellWidth = sheet.naturalWidth / (useCryFrame ? 2 : useMotionFrame ? 4 : ZODIAC_COLUMNS);
-      const cellHeight = sheet.naturalHeight / (useCryFrame ? 1 : useMotionFrame ? 2 : ZODIAC_ROWS);
-      const sourceX = useCryFrame ? clamp(options.cryFrame, 0, 1) * cellWidth : useMotionFrame ? clamp(options.motionFrame, 0, 3) * cellWidth : character.column * cellWidth;
-      const sourceY = useCryFrame ? 0 : useMotionFrame ? clamp(options.motionRow || 0, 0, 1) * cellHeight : character.row * cellHeight;
-      const scale = (options.scale ?? 1) * (useCryFrame || useMotionFrame ? 1 : motion.scale);
-      const center = useCryFrame || useMotionFrame ? .5 : motion.center;
-      const ground = useCryFrame || useMotionFrame ? 248 / 256 : motion.bottom;
+      const cellWidth = sheet.naturalWidth / 4, cellHeight = sheet.naturalHeight / 3;
+      const sourceX = clamp(options.cryFrame ?? options.motionFrame ?? 0, 0, 3) * cellWidth;
+      const sourceY = (Number.isInteger(options.cryFrame) ? 1 : options.motionRow ?? 2) * cellHeight;
+      const scale = options.scale ?? 1, center = .5, ground = humanCharacters.ground;
       context.save();
       context.translate(Math.round(x + (options.offsetX || 0)), Math.round(feetY + (options.offsetY || 0)));
       if (options.mirror) context.scale(-1, 1);
       context.rotate((options.rotate || 0) * Math.PI / 180);
       context.scale(scale * (options.scaleX ?? 1), scale * (options.scaleY ?? 1));
       context.globalAlpha = options.alpha ?? 1;
-      context.filter = `hue-rotate(${variant.hue}deg) saturate(${variant.saturation}) brightness(${variant.brightness})`;
       context.shadowColor = options.glow || "rgba(7,9,28,.72)";
       context.shadowBlur = options.glow ? 24 : 10;
       context.drawImage(sheet, sourceX, sourceY, cellWidth, cellHeight, -size * center, -size * ground, size, size);
@@ -1230,9 +1126,8 @@
     }
 
     function seatedCryPose(age) {
-      // Real seated frames alternate the head/arms; the ground anchor never bounces.
-      // The kneeling frame is a safe fallback if a crying asset cannot load.
-      return { cryFrame: Math.floor(Math.max(0, age) / 340) % 2, motionRow: 1, motionFrame: 1, mirror: true };
+      // Four actual seated poses, with a fixed ground anchor and original identity.
+      return { cryFrame: Math.floor(Math.max(0, age) / 260) % 4, mirror: true };
     }
 
     function drawFallEffects(x, y, age) {
@@ -1281,12 +1176,9 @@
 
     function nameplateAbove(participant, feetY, spriteSize, pose = {}) {
       const safeTop = innerWidth <= 700 ? 92 : 96;
-      const motion = zodiacMotionProfile(participant);
-      const visibleHeight = Number.isInteger(pose.cryFrame)
-        ? spriteSize * (174 / 256) * (pose.scale ?? 1)
-        : Number.isInteger(pose.motionFrame)
-          ? spriteSize * .91 * (pose.scale ?? 1) * (pose.scaleY ?? 1)
-        : spriteSize * (motion.bottom - motion.top) * motion.scale * (pose.scale ?? 1) * (pose.scaleY ?? 1);
+      const row = Number.isInteger(pose.cryFrame) ? 1 : pose.motionRow ?? 2;
+      const column = pose.cryFrame ?? pose.motionFrame ?? 0;
+      const visibleHeight = spriteSize * humanCharacters.poseHeight(participant,row,column) * (pose.scale ?? 1) * (pose.scaleY ?? 1);
       return Math.max(safeTop, feetY - visibleHeight - 24);
     }
 
@@ -1316,14 +1208,14 @@
       const lastSize = size * .93;
       let winnerProgress = 0;
       let loserProgress = 0;
-      let winnerPose = {};
-      let loserPose = { mirror: true };
+      let winnerPose = { motionRow: 2, motionFrame: 0 };
+      let loserPose = { motionRow: 2, motionFrame: 0, mirror: true };
       let winnerWalking = false;
       let loserWalking = false;
 
       if (state.name === "ENTER") {
-        winnerPose = { motionRow: 0, motionFrame: 0, offsetY: mix(28, 0, easeOut(state.progress)), scale: mix(.88, 1, easeOut(state.progress)), alpha: state.progress };
-        loserPose = { motionRow: 0, motionFrame: 0, mirror: true, offsetY: mix(28, 0, easeOut(state.progress)), scale: mix(.88, 1, easeOut(state.progress)), alpha: state.progress };
+        winnerPose = { motionRow: 2, motionFrame: 0, offsetY: mix(28, 0, easeOut(state.progress)), alpha: state.progress };
+        loserPose = { motionRow: 2, motionFrame: 0, mirror: true, offsetY: mix(28, 0, easeOut(state.progress)), alpha: state.progress };
       } else if (state.name === "WALK_TOGETHER") {
         winnerProgress = state.progress * .56;
         loserProgress = clamp((state.progress - .04) / .96) * .52;
@@ -1332,15 +1224,15 @@
       } else if (["LOSER_STUMBLE", "LOSER_FALL", "LOSER_SIT_UP", "WINNER_LOOK_BACK"].includes(state.name)) {
         winnerProgress = .56;
         loserProgress = .52;
-        winnerPose = state.name === "WINNER_LOOK_BACK" ? { motionRow: 0, motionFrame: 0, mirror: true, rotate: 4 } : { motionRow: 0, motionFrame: 0, rotate: Math.sin(elapsed / 280 * Math.PI) * .7 };
+        winnerPose = { motionRow: 2, motionFrame: 0, mirror: state.name === "WINNER_LOOK_BACK" };
         loserPose = state.name === "LOSER_STUMBLE"
           ? { motionRow: 0, motionFrame: 0, mirror: true, rotate: Math.sin(state.local * .07) * (3 + state.progress * 6), scaleY: 1 - state.progress * .03 }
           : state.name === "LOSER_FALL"
             ? state.progress < .72
               ? { motionRow: 0, motionFrame: 0, mirror: true, rotate: mix(0, lastMotion.fallRotate, ease(state.progress / .72)), scaleY: mix(1, lastMotion.fallSquash, ease(state.progress / .72)) }
-              : { motionRow: 1, motionFrame: 2, mirror: true }
+              : { cryFrame: 0, mirror: true }
             : state.name === "LOSER_SIT_UP" && state.progress < .62
-              ? { motionRow: 1, motionFrame: state.progress < .24 ? 2 : 1, mirror: true }
+              ? { cryFrame: 0, mirror: true }
               : seatedCryPose(elapsed - cryingStart);
       } else if (state.name === "WINNER_CLIMB") {
         winnerProgress = .56 + state.progress * .44;
@@ -1349,15 +1241,15 @@
       } else if (state.name === "WINNER_ARRIVE") {
         winnerProgress = 1;
         loserProgress = .52;
-        winnerPose = { motionRow: 0, motionFrame: 0, offsetY: -Math.sin(state.progress * Math.PI) * 9, scale: 1 + Math.sin(state.progress * Math.PI) * .04 };
+        winnerPose = { motionRow: 2, motionFrame: state.progress < .7 ? 0 : 1 };
       } else if (state.name === "VICTORY") {
         winnerProgress = 1;
         loserProgress = .52;
-        winnerPose = { motionRow: 0, motionFrame: 0, offsetY: -Math.abs(Math.sin(state.local / 260 * Math.PI)) * 13, scale: 1 + Math.abs(Math.sin(state.local / 260 * Math.PI)) * .07, glow: "rgba(255,216,77,.72)" };
+        winnerPose = { motionRow: 2, motionFrame: 1 + Math.min(2, Math.floor(state.progress * 3)), glow: "rgba(255,216,77,.72)" };
       } else if (["LOOK_DOWN", "FINAL_WIDE_SHOT"].includes(state.name)) {
         winnerProgress = 1;
         loserProgress = .52;
-        winnerPose = { motionRow: 0, motionFrame: 0, rotate: state.name === "LOOK_DOWN" ? 5 : 0, scale: state.name === "FINAL_WIDE_SHOT" ? 1.04 : 1, glow: "rgba(255,216,77,.6)" };
+        winnerPose = { motionRow: 2, motionFrame: state.name === "LOOK_DOWN" ? 3 : 2, glow: "rgba(255,216,77,.6)" };
       }
 
       if (["WINNER_LOOK_BACK", "WINNER_CLIMB", "WINNER_ARRIVE", "VICTORY", "LOOK_DOWN", "FINAL_WIDE_SHOT"].includes(state.name)) {

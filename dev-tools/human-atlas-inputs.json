@@ -1,0 +1,10 @@
+{
+  "minimal": "dev-tools/human-reference/minimal.png",
+  "utility": "dev-tools/human-reference/utility.png",
+  "rider": "dev-tools/human-reference/rider.png",
+  "explorer": "dev-tools/human-reference/explorer.png",
+  "captain": "dev-tools/human-reference/captain.png",
+  "runner": "dev-tools/human-reference/runner.png",
+  "traveler": "dev-tools/human-reference/traveler.png",
+  "tech": "dev-tools/human-reference/tech.png"
+}
