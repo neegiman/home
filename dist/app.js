@@ -4,7 +4,6 @@
   const $ = (selector) => document.querySelector(selector);
   const $$ = (selector) => [...document.querySelectorAll(selector)];
   const views = {
-    intro: $("#introView"),
     registration: $("#registrationView"),
     animation: $("#animationView"),
     finalStair: $("#finalStairView"),
@@ -1938,21 +1937,7 @@
       return;
     }
     renderDraftParticipants();
-    const registration = views.registration;
-    if (window.IntroAnimation?.shouldPlay(params)) {
-      showOnly("intro");
-      registration.inert = true;
-      const opening = new window.IntroAnimation($("#introAnimation"), {
-        view: views.intro, skipButton: $("#skipIntro"), caption: $("#introCaption"),
-        onReveal: () => { registration.hidden = false; },
-        onComplete: () => { registration.inert = false; showOnly("registration"); }
-      });
-      opening.start();
-    } else {
-      window.IntroAnimation?.rememberVisit();
-      document.documentElement.classList.remove("intro-pending");
-      showOnly("registration");
-    }
+    showOnly("registration");
   }
 
   bootstrap();
