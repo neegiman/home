@@ -1938,6 +1938,7 @@
     }
     renderDraftParticipants();
     showOnly("registration");
+    window.SunsetIntro?.start();
   }
 
   bootstrap();

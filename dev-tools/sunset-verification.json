@@ -1,0 +1,162 @@
+{
+  "checkedAt": "2026-10-05T21:47:01.340Z",
+  "browser": "agent-browser Chromium",
+  "checks": {
+    "firstEntry": {
+      "artRequests": 1,
+      "done": false,
+      "frame": 34,
+      "hidden": false,
+      "inert": true,
+      "oldMovies": 0,
+      "pending": true,
+      "registration": true,
+      "renderer": true,
+      "started": true,
+      "state": "SEA_REVEAL"
+    },
+    "independentMotion": {
+      "horizonPixelsChanged": 123,
+      "waterPixelsChanged": 51333
+    },
+    "complete": {
+      "artRequests": 1,
+      "done": true,
+      "frame": 0,
+      "hidden": true,
+      "inert": false,
+      "oldMovies": 0,
+      "pending": false,
+      "reason": "complete",
+      "registration": true,
+      "renderer": false,
+      "started": true,
+      "state": "FINISHED"
+    },
+    "frameTiming": {
+      "elapsedMs": 5004.1,
+      "meanMs": 7.492598967297764,
+      "p95Ms": 7.600000000000364,
+      "sampleCount": 581
+    },
+    "revisit": {
+      "artRequests": 0,
+      "done": false,
+      "frame": 0,
+      "hidden": true,
+      "inert": false,
+      "oldMovies": 0,
+      "pending": false,
+      "registration": true,
+      "renderer": false,
+      "started": false
+    },
+    "reloadWithoutSeen": {
+      "artRequests": 0,
+      "done": false,
+      "frame": 0,
+      "hidden": true,
+      "inert": false,
+      "oldMovies": 0,
+      "pending": false,
+      "registration": true,
+      "renderer": false,
+      "started": false
+    },
+    "skipPointer": {
+      "artRequests": 1,
+      "done": true,
+      "frame": 0,
+      "hidden": true,
+      "inert": false,
+      "oldMovies": 0,
+      "pending": false,
+      "reason": "skip",
+      "registration": true,
+      "renderer": false,
+      "started": true,
+      "state": "FINISHED"
+    },
+    "skipKeyboard": true,
+    "mobile": {
+      "artRequests": 1,
+      "done": false,
+      "frame": 35,
+      "hidden": false,
+      "inert": true,
+      "oldMovies": 0,
+      "pending": true,
+      "registration": true,
+      "renderer": true,
+      "started": true,
+      "state": "SEA_REVEAL"
+    },
+    "mobileSafeArea": {
+      "overflow": false,
+      "skip": [
+        283.59375,
+        18,
+        88.40625,
+        44
+      ],
+      "title": [
+        42.90625,
+        216.1875,
+        304.1875,
+        40.25
+      ],
+      "viewport": [
+        390,
+        844
+      ]
+    },
+    "orientationNoRestart": true,
+    "reducedMotion": {
+      "artRequests": 0,
+      "done": false,
+      "frame": 0,
+      "hidden": true,
+      "inert": false,
+      "oldMovies": 0,
+      "pending": false,
+      "registration": true,
+      "renderer": false,
+      "started": false
+    },
+    "tournamentDirect": {
+      "artRequests": 0,
+      "done": false,
+      "frame": 0,
+      "hidden": true,
+      "inert": false,
+      "oldMovies": 0,
+      "pending": false,
+      "registration": false,
+      "renderer": false,
+      "started": false
+    },
+    "shareDirect": {
+      "artRequests": 0,
+      "done": false,
+      "frame": 0,
+      "hidden": true,
+      "inert": false,
+      "oldMovies": 0,
+      "pending": false,
+      "registration": false,
+      "renderer": false,
+      "started": false
+    },
+    "resultNames": {
+      "last": "QA 4님",
+      "winner": "QA 1님"
+    },
+    "pageErrors": {
+      "success": true,
+      "data": {
+        "errors": []
+      },
+      "error": null
+    }
+  }
+}

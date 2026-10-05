@@ -11,10 +11,32 @@
   <link rel="preload" href="assets/characters/human-v1/minimal-m.png" as="image">
   <link rel="preload" href="assets/backgrounds/draw-stage.png" as="image">
   <link rel="preload" href="assets/backgrounds/champion-arena.png" as="image">
-  <link rel="stylesheet" href="styles.css?v=20261005-no-intro">
+  <script>
+    // Decide before paint; direct tournament/share URLs never request the opening art.
+    (() => {
+      const params = new URLSearchParams(location.search);
+      const navigation = performance.getEntriesByType("navigation")[0]?.type;
+      const direct = params.has("share") || params.get("mode") === "tournament";
+      const reduce = matchMedia("(prefers-reduced-motion: reduce)").matches;
+      let seen = false;
+      try { seen = localStorage.getItem("pixel-clash-sunset-seen-v1") === "1"; } catch (_) {}
+      window.__sunsetIntroEligible = !direct && !reduce && (params.get("intro") === "1" || (!seen && navigation !== "reload" && navigation !== "back_forward"));
+      if (window.__sunsetIntroEligible) {
+        document.documentElement.classList.add("sunset-intro-pending");
+        window.__sunsetIntroGuard = setTimeout(() => document.documentElement.classList.remove("sunset-intro-pending"), 3500);
+      }
+    })();
+  </script>
+  <link rel="stylesheet" href="styles.css?v=20261006-sunset-v1">
 </head>
 <body>
   <div class="crt" aria-hidden="true"></div>
+
+  <section id="sunsetIntro" class="sunset-intro" hidden role="dialog" aria-modal="true" aria-label="노을 바다 오프닝">
+    <canvas id="sunsetScene" class="sunset-intro__scene" aria-hidden="true"></canvas>
+    <canvas id="sunsetTitle" class="sunset-intro__title" role="img" aria-label="PIXEL CLASH"></canvas>
+    <button id="skipSunsetIntro" class="sunset-intro__skip" type="button">건너뛰기</button>
+  </section>
 
   <main id="registrationView" class="registration-view">
     <header class="hero">
@@ -256,6 +278,7 @@
   <div id="toast" class="toast" role="status" aria-live="polite"></div>
   <script src="assets/characters/human-v1/metrics.js?v=20261005-human-motion"></script>
   <script src="characters.js?v=20261005-human-motion"></script>
-  <script src="app.js?v=20261005-no-intro"></script>
+  <script src="sunset-intro.js?v=20261006-sunset-v1"></script>
+  <script src="app.js?v=20261006-sunset-v1"></script>
 </body>
 </html>
