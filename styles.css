@@ -854,3 +854,56 @@ body.result-mode { overflow: hidden; }
   .focus-player.crying .battle-trainer,
   .combatant.dropping .battle-trainer { animation: none; background-position: 33.333333% 50%; }
 }
+
+/* Match metadata lives in the panel header, never in the character viewport. */
+.bracket-current-match { min-width: 0; padding: 5px 12px; border: 1px solid rgba(255,216,77,.35); background: rgba(5,9,28,.7); text-align: center; }
+.bracket-current-match > span { display: block; color: #a8b9e3; font-size: 9px; letter-spacing: .06em; }
+.bracket-current-match b { margin-left: 12px; color: var(--gold); }
+.bracket-current-match > small { display: block; margin-top: 5px; color: var(--cream); font-size: 12px; }
+@media (min-width: 701px) {
+  .bracket-panel > header { flex: 0 0 64px; min-height: 64px; padding: 6px 18px; }
+  .bracket-panel > header h2 { margin: 2px 0; font-size: 22px; line-height: 1.15; }
+  .bracket-panel > header p, .bracket-panel > header > div > span { font-size: 7px; }
+}
+.bracket-scroll--duel > .duel-focus {
+  height: min(100%, 540px);
+  min-height: 210px;
+  padding: 0 0 6px;
+  display: grid;
+  grid-template-rows: minmax(0, 1fr) 5px;
+  gap: 4px;
+}
+.bracket-scroll--duel .duel-players {
+  height: 100%;
+  min-height: 0;
+  padding: 0;
+  container-type: size;
+}
+.bracket-scroll--duel .focus-player {
+  min-height: 0;
+  max-height: none;
+  height: auto;
+  padding: 6px 8px;
+}
+.bracket-scroll--duel .duel-players > .focus-player:first-child { top: 10px; bottom: auto; }
+.bracket-scroll--duel .duel-players > .focus-player:last-child { top: auto; bottom: 10px; }
+.bracket-scroll--duel .battle-trainer {
+  width: min(178px, 21vw, max(64px, calc(100cqh - 104px)));
+  flex: 0 0 auto;
+  margin: 0 auto;
+}
+.bracket-scroll--duel .focus-player__copy { padding: 5px 6px; }
+.bracket-scroll--duel .focus-player__copy.no-team { padding-block: 5px; }
+.bracket-scroll--duel .focus-player__copy strong { font-size: clamp(14px, 2vw, 22px); }
+.bracket-scroll--duel .focus-player__copy.no-team strong { font-size: clamp(17px, 2.6vw, 28px); }
+.bracket-scroll--duel .focus-player__copy em { overflow: hidden; margin-top: 2px; font-size: 8px; white-space: nowrap; text-overflow: ellipsis; }
+.bracket-scroll--duel .focus-progress { height: 5px; margin: 0; }
+@media (max-width: 700px) {
+  .bracket-current-match { padding: 4px 6px; }
+  .bracket-current-match > span { font-size: 7px; }
+  .bracket-current-match b { margin-left: 6px; }
+  .bracket-current-match > small { margin-top: 3px; font-size: 9px; }
+  .bracket-scroll--duel .battle-trainer { width: min(136px, 34vw, max(64px, calc(100cqh - 104px))); }
+  .bracket-scroll--duel .focus-player__copy strong { font-size: 12px; }
+  .bracket-scroll--duel .focus-player__copy.no-team strong { font-size: 16px; }
+}

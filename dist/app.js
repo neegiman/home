@@ -760,6 +760,10 @@
   }
 
   function renderBracketTree(tree, container) {
+    container.classList.remove("bracket-scroll--duel");
+    const matchHud = container.closest(".bracket-panel").querySelector(".bracket-current-match");
+    matchHud.hidden = true;
+    matchHud.replaceChildren();
     if (!tree.rounds.length) {
       const participant = participantById(tree.champion);
       container.innerHTML = `<div class="solo-result"><div><span>AUTO FINALIST</span><strong>${participant?.name ? escapeName(participant.name) : "대기 중"}</strong></div></div>`;
@@ -792,9 +796,10 @@
     const roundTitle = activeRound.index === tree.rounds.length - 1 ? "FINAL" : `ROUND ${activeRound.index + 1}`;
     const resolvedInRound = activeRound.matches.filter((match) => match.resolved).length;
     const instruction = tree.type === "winner" ? "이 경기의 승자를 선택하세요" : "이 경기의 패자를 선택하세요";
+    container.classList.add("bracket-scroll--duel");
+    matchHud.hidden = false;
+    matchHud.innerHTML = `<span>${roundTitle} · MATCH ${activeMatchIndex + 1} <b>${resolvedInRound + 1} / ${activeRound.matches.length}</b></span><small>${instruction}</small>`;
     container.innerHTML = `<div class="duel-focus duel-focus--${tree.type}">
-      <div class="focus-match-status"><span>${roundTitle} · MATCH ${activeMatchIndex + 1}</span><strong>${resolvedInRound + 1} / ${activeRound.matches.length}</strong></div>
-      <div class="duel-instruction">${instruction}<small>${tree.type === "winner" ? "선택한 참가자가 다음 라운드로 진출합니다" : "선택한 참가자가 다음 최하위 결정전으로 이동합니다"}</small></div>
       <div class="duel-players">
         ${bracketPlayerButton(activeMatch.a, activeMatch, tree.type)}
         <div class="duel-vs"><span>VS</span><i></i></div>
