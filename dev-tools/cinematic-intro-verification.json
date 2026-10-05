@@ -1,10 +1,15 @@
 {
   "date": "2026-10-05",
-  "opening": "cinematic-v3",
-  "runtimeMilliseconds": 5024,
-  "distinctPhotographicPoses": 9,
-  "meanDrawMilliseconds": 0.71,
-  "maxDrawMilliseconds": 22.8,
+  "opening": "cinematic-smooth-v4",
+  "timelineMilliseconds": 8000,
+  "runtimeIncludingPreparationMilliseconds": 8153,
+  "distinctPhotographicKeyPoses": 9,
+  "poseInterpolation": "Aligned hip anchors, local joint similarity mesh, short texture handoff; existing photographic atlas retained.",
+  "observedInterpolatedDrawSamples": 321,
+  "meanPlaybackDrawMilliseconds": 0.43,
+  "maxPlaybackDrawMilliseconds": 2.8,
+  "playbackFrameIntervalP95Milliseconds": 6.2,
+  "performanceEnvironment": "Local desktop Chromium, 1440x900 viewport; not an on-device iPhone benchmark. Asset preparation excluded from playback draw costs.",
   "browserViewports": [
     "1440x900",
     "390x844"
@@ -20,6 +25,11 @@
   ],
   "passed": [
     "photographic assets before hit",
+    "continuous joint interpolation between key poses",
+    "hip anchor alignment across nine source poses",
+    "joint fits and pixel destination prepared before playback",
+    "incremental cached pixel portal rendering",
+    "WebGL unavailable: aligned Canvas fallback and cleanup",
     "shared target/bullseye anchor",
     "center-out target-first pixel conversion",
     "separate high-res cinematic and low-res game canvases",
@@ -33,11 +43,12 @@
     "canvas memory released",
     "registration interactive after finish",
     "CRT restored",
-    "reduced motion 596ms logo",
+    "reduced motion 601ms logo",
     "root/dist byte parity",
     "224 registration assignment regression",
     "192 participant animation frame regression"
   ],
-  "assetGeneration": "Built-in image generation; local WebP packaging only; no video-generation model or external asset CDN.",
+  "assetGeneration": "Existing built-in generated photographic images; no new raster artwork, video-generation model or external asset CDN in this follow-up.",
+  "limitations": "Nine source still poses, not genuine motion-video frames. Interpolation reduces jumps but cannot reconstruct every anatomical or cloth detail between unlike poses.",
   "browserErrors": 0
 }

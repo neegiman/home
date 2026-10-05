@@ -6,13 +6,14 @@
   const smooth = t => { t = clamp(t); return t * t * (3 - 2 * t); };
   // Preserve visit records when replacing artwork, so returning players skip it.
   const STORAGE_KEY = `pixel-clash:opening:v1:${new URL(".", location.href).pathname}`;
+  const TIMING = Object.freeze({ release:3700, track:4100, hit:4800, transform:5950, title:7150, transition:7350, wipe:7600, end:8000 });
   const SEQUENCE = Object.freeze([
-    ["INTRO_DARK", 0, 120], ["ARCHER_REAR_VIEW", 120, 1200],
-    ["BOW_DRAW", 1200, 2200], ["ARROW_RELEASE", 2200, 3000],
-    ["TARGET_HIT", 3000, 4000], ["TARGET_PIXEL_TRANSFORM", 4000, 4750],
-    ["PIXEL_CLASH_TRANSITION", 4750, 5000]
+    ["INTRO_DARK", 0, 120], ["ARCHER_REAR_VIEW", 120, 1750],
+    ["BOW_DRAW", 1750, TIMING.release], ["ARROW_RELEASE", TIMING.release, TIMING.hit],
+    ["TARGET_HIT", TIMING.hit, TIMING.transform], ["TARGET_PIXEL_TRANSFORM", TIMING.transform, TIMING.transition],
+    ["PIXEL_CLASH_TRANSITION", TIMING.transition, TIMING.end]
   ]);
-  const POSES = [[0,0],[650,1],[1150,2],[1410,3],[1640,4],[1900,5],[2200,6],[2320,7],[2450,8]];
+  const POSES = [[0,0],[1000,1],[1850,2],[2450,3],[3020,4],[3450,5],[3700,5],[3830,6],[4050,7],[4400,8]];
   const GLYPHS = {
     P:["11110","10001","10001","11110","10000","10000","10000"],
     I:["11111","00100","00100","00100","00100","00100","11111"],
@@ -51,7 +52,7 @@
       this.elapsed = 0; this.frameId = 0; this.running = false; this.ready = false; this.revealed = false;
       this.controller = new AbortController();
       this.reduced = matchMedia("(prefers-reduced-motion: reduce)").matches;
-      this.duration = this.reduced ? 600 : 5000;
+      this.duration = this.reduced ? 600 : TIMING.end;
       this.camera = { x: 0, y: 0, zoom: 1, shakeX: 0, shakeY: 0 };
       const tokens = getComputedStyle(document.documentElement);
       this.palette = Object.fromEntries(["ink","navy","panel","panel-2","line","cream","gold","orange","red","blue","blue-dark"].map(key => [key,tokens.getPropertyValue(`--${key}`).trim()]));
@@ -67,7 +68,7 @@
         this.arrowImage = loadImage("assets/intro/cinematic-v3/arrow.webp");
       }
       this.gameArena = loadImage("assets/backgrounds/champion-arena.png");
-      this.pixelWorld = document.createElement("canvas"); this.logo = this.createLogo();
+      this.pixelWorld = document.createElement("canvas"); this.portal = document.createElement("canvas"); this.logo = this.createLogo();
       const { signal } = this.controller;
       skipButton?.addEventListener("click", () => this.finish("skip"), { signal });
       window.addEventListener("keydown", event => { if (event.key === "Escape") this.finish("skip"); }, { signal });
@@ -88,10 +89,19 @@
       this.view.hidden = false; this.skipButton.hidden = false; this.caption.hidden = false;
       this.canvas.dataset.running = "true"; this.canvas.dataset.pixelCoverage = "0";
       delete this.canvas.dataset.fallback; delete this.canvas.dataset.spriteFrame;
+      delete this.canvas.dataset.motionMode; delete this.canvas.dataset.poseMix;
       this.resize(); this.draw(0);
       const loaded = this.reduced || await this.waitForAssets();
       if (!this.running) return;
       if (!loaded) { this.reduced = true; this.duration = 600; this.canvas.dataset.fallback = "asset-timeout"; }
+      if(!this.reduced && window.CinematicPoseRenderer) {
+        this.poseRenderer=new window.CinematicPoseRenderer(this.archer);
+        this.canvas.dataset.motionMode=this.poseRenderer.mode;
+      }
+      // Prepare the pixel destination and upload image layers while still black;
+      // the first portal frame should not pay the cost of building all its art.
+      if(!this.reduced)this.buildPixelWorld();
+      this.draw(0);
       this.ready = true; this.lastTime = performance.now();
       if (!document.hidden) this.queueFrame();
     }
@@ -120,8 +130,9 @@
       this.context.imageSmoothingEnabled = true; this.context.imageSmoothingQuality = "high";
       this.pixelScale = this.width < 700 ? 2 : 3;
       this.pixelWorld.width = Math.ceil(this.width / this.pixelScale); this.pixelWorld.height = Math.ceil(this.height / this.pixelScale);
+      this.portal.width=this.pixelWorld.width;this.portal.height=this.pixelWorld.height;this.portalIndex=0;this.portalProgress=0;
       this.worldDirty = true;
-      const target = this.targetLayout(3000), block = this.pixelScale * 4;
+      const target = this.targetLayout(TIMING.hit), block = this.pixelScale * 4;
       this.cells = [];
       const maxDistance = Math.max(...[[0,0],[this.width,0],[0,this.height],[this.width,this.height]].map(([x,y]) => Math.hypot(x-target.x,y-target.y)));
       for (let y=0; y<this.height; y+=block) for (let x=0; x<this.width; x+=block) {
@@ -131,6 +142,7 @@
         const threshold = distance <= target.r*1.12 ? distance/(target.r*1.12)*.48 : .48+(distance-target.r*1.12)/(maxDistance-target.r*1.12)*.49;
         this.cells.push({ x,y,size:block,at:clamp(threshold+noise*.016,0,.99) });
       }
+      this.sortedCells=[...this.cells].sort((a,b)=>a.at-b.at);
       if (this.running) this.draw(this.elapsed);
     }
 
@@ -151,13 +163,13 @@
     }
 
     updateCamera(elapsed) {
-      const flight = smooth((elapsed-2450)/550);
-      this.camera.zoom = elapsed < 2450 ? 1+.025*smooth((elapsed-1450)/450) : mix(1.025,1.24,flight);
+      const flight = smooth((elapsed-TIMING.track)/(TIMING.hit-TIMING.track));
+      this.camera.zoom = elapsed < TIMING.track ? 1+.025*smooth((elapsed-2700)/650) : mix(1.025,1.24,flight);
       this.camera.x = flight*.035*this.width; this.camera.y = flight*.018*this.height;
       this.camera.shakeX = this.camera.shakeY = 0;
-      if (elapsed>=2200 && elapsed<2280) this.camera.shakeX = Math.sin(elapsed*.14)*1.8*(1-(elapsed-2200)/80);
-      if (elapsed>=3000 && elapsed<3150) {
-        const decay = 1-(elapsed-3000)/150;
+      if (elapsed>=TIMING.release && elapsed<TIMING.release+80) this.camera.shakeX = Math.sin(elapsed*.14)*1.8*(1-(elapsed-TIMING.release)/80);
+      if (elapsed>=TIMING.hit && elapsed<TIMING.hit+150) {
+        const decay = 1-(elapsed-TIMING.hit)/150;
         this.camera.shakeX = Math.sin(elapsed*.12)*3*decay; this.camera.shakeY = Math.cos(elapsed*.17)*2*decay;
       }
     }
@@ -173,12 +185,12 @@
       const c=this.context,w=this.width,h=this.height;
       c.fillStyle="#04070e"; c.fillRect(0,0,w,h);
       this.cover(c,this.arena,w,h,this.camera.zoom,-this.camera.x,-this.camera.y);
-      const flight=smooth((elapsed-2450)/550);
+      const flight=smooth((elapsed-TIMING.track)/(TIMING.hit-TIMING.track));
       c.fillStyle="rgba(3,9,20,.16)"; c.fillRect(0,0,w,h);
       const haze=c.createLinearGradient(0,h*.28,0,h);
       haze.addColorStop(0,"rgba(36,58,89,.02)"); haze.addColorStop(.5,"rgba(36,58,89,.12)"); haze.addColorStop(1,"rgba(1,4,9,.62)");
       c.fillStyle=haze; c.fillRect(0,0,w,h);
-      if (flight>0 && elapsed<3000) {
+      if (flight>0 && elapsed<TIMING.hit) {
         c.save(); c.globalAlpha=Math.sin(flight*Math.PI)*.17; c.lineWidth=1.5;
         for(let i=0;i<12;i++) {
           const x=(i+.5)/12*w, shift=(flight*430*(i%3+1))%w;
@@ -199,30 +211,31 @@
     poseAt(elapsed) {
       let index=0;
       while(index<POSES.length-1 && elapsed>=POSES[index+1][0]) index++;
-      return { frame:POSES[index][1], previous:POSES[Math.max(0,index-1)][1], blend:index?clamp((elapsed-POSES[index][0])/90):1 };
+      const current=POSES[index],next=POSES[Math.min(index+1,POSES.length-1)];
+      const blend=next[0]===current[0]?0:clamp((elapsed-current[0])/(next[0]-current[0]));
+      return { from:current[1],to:next[1],frame:blend<.5?current[1]:next[1],previous:current[1],blend };
     }
     drawArcher(elapsed) {
-      if (!this.archer?.naturalWidth || elapsed>=2710) return;
+      if (!this.archer?.naturalWidth || elapsed>=TIMING.hit) return;
       const c=this.context,{size,x,bottom}=this.archerLayout(),cell=this.archer.naturalWidth/3;
-      const {frame,previous,blend}=this.poseAt(elapsed);
+      const {frame,from,to,blend}=this.poseAt(elapsed);
       this.canvas.dataset.spriteFrame=String(frame);
-      const leave=1-smooth((elapsed-2500)/210), reveal=smooth((elapsed-160)/420);
+      this.canvas.dataset.poseMix=blend.toFixed(4);
+      const leave=1-smooth((elapsed-4350)/400), reveal=smooth((elapsed-160)/420);
       c.save(); c.translate(x,bottom); c.scale(-1,1);
-      const drawPose=(which,alpha)=>{
-        if(alpha<=0)return;
-        c.globalAlpha=alpha*leave*reveal;
-        // Fixed hip anchor: actual body/arm/bow/hair poses, never sprite rotation.
-        c.drawImage(this.archer,which%3*cell,Math.floor(which/3)*cell,cell,cell,-size*(285/448),-size*(430/448),size,size);
-      };
-      if(blend<1)drawPose(previous,1-blend);
-      drawPose(frame,blend); c.restore();
+      c.globalAlpha=leave*reveal;
+      if(this.poseRenderer) {
+        const image=this.poseRenderer.render(from,to,blend),scale=size/cell,origin=this.poseRenderer.origin;
+        c.drawImage(image,-origin.x*scale,-origin.y*scale,image.width*scale,image.height*scale);
+      }else c.drawImage(this.archer,frame%3*cell,Math.floor(frame/3)*cell,cell,cell,-size*(285/448),-size*(430/448),size,size);
+      c.restore();
       const shadow=c.createLinearGradient(0,this.height*.82,0,this.height);
       shadow.addColorStop(0,"rgba(0,0,0,0)"); shadow.addColorStop(1,"rgba(0,0,0,.55)");
       c.fillStyle=shadow; c.fillRect(0,this.height*.82,this.width,this.height*.18);
     }
 
     targetLayout(elapsed) {
-      const close=smooth((elapsed-2450)/550),w=this.width,h=this.height;
+      const close=smooth((elapsed-TIMING.track)/(TIMING.hit-TIMING.track)),w=this.width,h=this.height;
       return { x:mix(w*.67,w*.5,close), y:mix(h*(w<700?.67:.51),h*.46,close), r:mix(Math.min(w,h)*.047,Math.min(w*.39,h*.31),close) };
     }
     drawTarget(elapsed) {
@@ -235,7 +248,7 @@
       stand.addColorStop(0,"#090d11"); stand.addColorStop(.5,"#36424a"); stand.addColorStop(1,"#070b11");
       c.strokeStyle=stand; c.lineWidth=Math.max(2,r*.035);
       c.beginPath();c.moveTo(x-r*.38,y+r*.85);c.lineTo(x-r*.52,y+r*1.43);c.moveTo(x+r*.38,y+r*.85);c.lineTo(x+r*.52,y+r*1.43);c.stroke();
-      if(elapsed>=3000)this.drawArrow(x,y,r*.9,-.39,false);
+      if(elapsed>=TIMING.hit)this.drawArrow(x,y,r*.9,-.39,false);
     }
     drawArrow(x,y,length,angle,pixel=false,trail=0,context=this.context) {
       const c=context;c.save();c.translate(x,y);c.rotate(angle);
@@ -259,23 +272,28 @@
       c.beginPath();c.moveTo(0,0);c.lineTo(-thickness*6,-thickness*2);c.lineTo(-thickness*6,thickness*2);c.closePath();c.fill();c.restore();
     }
     drawFlight(elapsed) {
-      if(elapsed<2200 || elapsed>=3000)return;
-      const t=clamp((elapsed-2200)/800),target=this.targetLayout(elapsed),archer=this.archerLayout();
-      const start={x:archer.x+archer.size*(285/448-.27),y:archer.bottom-archer.size*(430/448-.44)};
-      const x=mix(start.x,target.x,t),y=mix(start.y,target.y,t)-Math.sin(t*Math.PI)*this.height*.045;
+      if(elapsed<TIMING.release || elapsed>=TIMING.hit)return;
+      const t=clamp((elapsed-TIMING.release)/(TIMING.hit-TIMING.release)),target=this.targetLayout(elapsed),archer=this.archerLayout();
+      const rest=this.poseRenderer?.arrowRest(),scale=archer.size/448;
+      const start=rest?{x:archer.x-rest.x*scale,y:archer.bottom+rest.y*scale}:
+        {x:archer.x+archer.size*(285/448-.27),y:archer.bottom-archer.size*(430/448-.44)};
+      // Fast initial acceleration clears the bow instead of drifting across the
+      // archer's hair; the camera then follows the projectile into the target.
+      const travel=1-(1-t)**3;
+      const x=mix(start.x,target.x,travel),y=mix(start.y,target.y,travel)-Math.sin(travel*Math.PI)*this.height*.045;
       const angle=mix(Math.atan2(target.y-start.y,target.x-start.x),-.39,smooth((t-.6)/.4));
-      if(elapsed<2270) {
-        const c=this.context,fade=1-(elapsed-2200)/70;
+      if(elapsed<TIMING.release+70) {
+        const c=this.context,fade=1-(elapsed-TIMING.release)/70;
         const light=c.createRadialGradient(start.x,start.y,0,start.x,start.y,22);
         light.addColorStop(0,`rgba(251,240,215,${.45*fade})`);light.addColorStop(1,"rgba(251,240,215,0)");
         c.fillStyle=light;c.fillRect(start.x-22,start.y-22,44,44);
       }
       // Perspective, a small trajectory and lens trail, not simple x translation.
-      this.drawArrow(x,y,mix(this.width*.19,target.r*.9,t),angle,false,this.width*.14*(1-t));
+      this.drawArrow(x,y,mix(this.width*.19,target.r*.9,travel),angle,false,this.width*.14*(1-travel));
     }
     drawImpact(elapsed) {
-      const age=elapsed-3000;if(age<0 || age>570)return;
-      const c=this.context,{x,y,r}=this.targetLayout(3000),t=age/570;
+      const age=elapsed-TIMING.hit;if(age<0 || age>570)return;
+      const c=this.context,{x,y,r}=this.targetLayout(TIMING.hit),t=age/570;
       if(age<80){c.fillStyle=`rgba(255,235,190,${.16*(1-age/80)})`;c.fillRect(0,0,this.width,this.height);}
       for(let i=0;i<16;i++) {
         const angle=i*2.399,speed=r*(.14+(i%5)*.06),px=x+Math.cos(angle)*speed*t,py=y+Math.sin(angle)*speed*t+r*.15*t*t;
@@ -290,7 +308,7 @@
       const c=this.pixelWorld.getContext("2d"),w=this.pixelWorld.width,h=this.pixelWorld.height,s=this.pixelScale;
       c.imageSmoothingEnabled=false;c.fillStyle=this.palette.ink;c.fillRect(0,0,w,h);
       this.cover(c,this.gameArena,w,h);c.fillStyle="rgba(8,10,24,.52)";c.fillRect(0,0,w,h);
-      const target=this.targetLayout(3000),x=Math.round(target.x/s),y=Math.round(target.y/s),r=Math.round(target.r/s);
+      const target=this.targetLayout(TIMING.hit),x=Math.round(target.x/s),y=Math.round(target.y/s),r=Math.round(target.r/s);
       // Newly drawn game art, not a globally downsampled photograph.
       c.fillStyle=this.palette.line;c.fillRect(x-r*.4,y+r*.85,3,r*.6);c.fillRect(x+r*.4-3,y+r*.85,3,r*.6);
       for(let py=-r-2;py<r+2;py+=2)for(let px=-r-2;px<r+2;px+=2) {
@@ -308,10 +326,16 @@
         c.drawImage(this.pixelWorld,0,0,this.width,this.height);c.restore();
         this.canvas.dataset.pixelCoverage="1.000";return;
       }
-      for(const cell of this.cells) {
-        if(progress<cell.at)continue;changed++;
-        c.drawImage(this.pixelWorld,cell.x/s,cell.y/s,cell.size/s,cell.size/s,cell.x,cell.y,cell.size,cell.size);
-        if(progress<1 && progress-cell.at<.026){c.globalAlpha=.45;c.fillStyle=cell.x%24?this.palette.gold:this.palette.blue;c.fillRect(cell.x,cell.y,cell.size,cell.size);c.globalAlpha=1;}
+      const portal=this.portal.getContext("2d");portal.imageSmoothingEnabled=false;
+      if(progress<this.portalProgress){portal.clearRect(0,0,this.portal.width,this.portal.height);this.portalIndex=0;}
+      while(this.portalIndex<this.sortedCells.length && this.sortedCells[this.portalIndex].at<=progress) {
+        const cell=this.sortedCells[this.portalIndex++];
+        portal.drawImage(this.pixelWorld,cell.x/s,cell.y/s,cell.size/s,cell.size/s,cell.x/s,cell.y/s,cell.size/s,cell.size/s);
+      }
+      this.portalProgress=progress;changed=this.portalIndex;c.drawImage(this.portal,0,0,this.width,this.height);
+      // Only the active edge lights up; completed tiles are cached, not re-drawn.
+      for(let i=this.portalIndex-1;i>=0 && progress-this.sortedCells[i].at<.026;i--) {
+        const cell=this.sortedCells[i];c.globalAlpha=.45;c.fillStyle=cell.x%24?this.palette.gold:this.palette.blue;c.fillRect(cell.x,cell.y,cell.size,cell.size);
       }
       c.restore();this.canvas.dataset.pixelCoverage=(changed/this.cells.length).toFixed(3);
     }
@@ -329,7 +353,7 @@
     }
     drawTitle(elapsed) {
       const c=this.context,w=this.width,h=this.height;
-      const pop=this.reduced?1:mix(.94,1,Math.floor(clamp((elapsed-4650)/130)*4)/4);
+      const pop=this.reduced?1:mix(.94,1,Math.floor(clamp((elapsed-TIMING.title)/180)*4)/4);
       const width=Math.round(Math.min(w*.78,680)*pop),height=width*12/66,x=(w-width)/2,y=h*.16-height/2;
       c.save();c.imageSmoothingEnabled=false;
       c.fillStyle=this.palette.line;c.fillRect(x-12,y-12,width+24,height+24);
@@ -339,7 +363,7 @@
     transitionToRegistration(progress) {
       if(!this.revealed){this.revealed=true;this.onReveal();this.caption.hidden=true;}
       if(progress<=0)return;
-      const c=this.context,center=this.targetLayout(3000);
+      const c=this.context,center=this.targetLayout(TIMING.hit);
       const far=Math.hypot(Math.max(center.x,this.width-center.x),Math.max(center.y,this.height-center.y));
       for(const cell of this.cells)if(Math.hypot(cell.x-center.x,cell.y-center.y)<far*progress*1.05)c.clearRect(cell.x,cell.y,cell.size,cell.size);
     }
@@ -347,7 +371,7 @@
       this.state=this.stateAt(elapsed);
       const {name,progress}=this.state,c=this.context,w=this.width,h=this.height;
       this.canvas.dataset.state=name;this.view.dataset.state=name;
-      this.canvas.dataset.renderMode=elapsed<4000&&!this.reduced?"cinematic":"pixel-portal";
+      this.canvas.dataset.renderMode=elapsed<TIMING.transform&&!this.reduced?"cinematic":"pixel-portal";
       c.setTransform(this.dpr,0,0,this.dpr,0,0);c.globalAlpha=1;c.imageSmoothingEnabled=true;c.clearRect(0,0,w,h);
       if(this.reduced) {
         c.fillStyle=this.palette.ink;c.fillRect(0,0,w,h);this.drawTitle(elapsed);
@@ -362,8 +386,8 @@
         document.body.style.setProperty("--intro-crt",String(.14*conversion));
         if(conversion>0)this.drawTransformation(conversion);
         else this.canvas.dataset.pixelCoverage="0";
-        if(elapsed>=4650)this.drawTitle(elapsed);
-        if(name==="PIXEL_CLASH_TRANSITION")this.transitionToRegistration(clamp((elapsed-4850)/150));
+        if(elapsed>=TIMING.title)this.drawTitle(elapsed);
+        if(name==="PIXEL_CLASH_TRANSITION")this.transitionToRegistration(clamp((elapsed-TIMING.wipe)/(TIMING.end-TIMING.wipe)));
       }
       const captions={TARGET_PIXEL_TRANSFORM:"정확한 한 발, 새로운 세계",PIXEL_CLASH_TRANSITION:"운명의 대결을 시작하세요"};
       if(!this.revealed)this.caption.textContent=captions[name]||"";
@@ -373,7 +397,8 @@
       this.running=false;cancelAnimationFrame(this.frameId);this.frameId=0;clearTimeout(this.assetTimer);
       this.controller.abort();this.assets.length=0;
       this.canvas.dataset.running="false";this.canvas.dataset.state="REGISTRATION";this.view.hidden=true;
-      this.canvas.width=this.canvas.height=1;this.pixelWorld.width=this.pixelWorld.height=1;
+      this.canvas.width=this.canvas.height=1;this.pixelWorld.width=this.pixelWorld.height=1;this.portal.width=this.portal.height=1;
+      this.poseRenderer?.dispose();this.poseRenderer=null;
       this.archer=this.arena=this.target=this.arrowImage=this.gameArena=null;
       document.documentElement.classList.remove("intro-pending");document.body.classList.remove("intro-playing");
       document.body.style.removeProperty("--intro-crt");

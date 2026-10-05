@@ -62,21 +62,29 @@ async function main() {
   navigationType = "navigate";
   Intro.rememberVisit();
   assert.equal(Intro.shouldPlay(new URLSearchParams()), false, "Same-page memory fallback");
-  const timeline = [[0,"INTRO_DARK"],[800,"ARCHER_REAR_VIEW"],[1900,"BOW_DRAW"],[2250,"ARROW_RELEASE"],[2900,"ARROW_RELEASE"],[3500,"TARGET_HIT"],[4300,"TARGET_PIXEL_TRANSFORM"],[4850,"PIXEL_CLASH_TRANSITION"]];
+  const timeline = [[0,"INTRO_DARK"],[800,"ARCHER_REAR_VIEW"],[2900,"BOW_DRAW"],[3750,"ARROW_RELEASE"],[4400,"ARROW_RELEASE"],[5200,"TARGET_HIT"],[6500,"TARGET_PIXEL_TRANSFORM"],[7750,"PIXEL_CLASH_TRANSITION"]];
   for (const [time, state] of timeline) assert.equal(Intro.prototype.stateAt.call({ reduced: false }, time).name, state);
   assert.equal(Intro.prototype.stateAt.call({ reduced: true }, 100).name, "PIXEL_CLASH_TRANSITION");
   assert.equal(Intro.prototype.stateAt.call({ reduced: true }, 100).progress, 0);
   assert.equal(Intro.prototype.stateAt.call({ reduced: true }, 600).progress, 1);
   const poseSet = new Set();
-  for (let time = 0; time < 2600; time += 10) poseSet.add(Intro.prototype.poseAt.call({}, time).frame);
+  for (let time = 0; time < 4500; time += 10) poseSet.add(Intro.prototype.poseAt.call({}, time).frame);
   assert.equal(poseSet.size, 9);
-  assert.equal(Intro.prototype.poseAt.call({}, 2199).frame, 5, "Full tension held before release");
-  assert.equal(Intro.prototype.poseAt.call({}, 2200).frame, 6, "Release pose starts at 2.2s");
-  const targetStart = Intro.prototype.targetLayout.call({ width: 1440, height: 900 }, 3000);
-  const targetEnd = Intro.prototype.targetLayout.call({ width: 1440, height: 900 }, 4750);
+  assert.equal(Intro.prototype.poseAt.call({}, 3699).frame, 5, "Full tension held before release");
+  assert.equal(Intro.prototype.poseAt.call({}, 3830).frame, 6, "Release pose completes at 3.83s");
+  const intermediate = new Set();
+  for(let time=1850;time<3450;time+=16) {
+    const pose=Intro.prototype.poseAt.call({},time);
+    intermediate.add(`${pose.from}:${pose.to}:${pose.blend.toFixed(3)}`);
+  }
+  assert.ok(intermediate.size>=90,"Continuous in-between poses, not nine discrete holds");
+  const before=Intro.prototype.poseAt.call({},2449),after=Intro.prototype.poseAt.call({},2450);
+  assert.ok(before.blend>.99);assert.equal(before.to,after.from,"Adjacent intervals meet on the same pose");
+  const targetStart = Intro.prototype.targetLayout.call({ width: 1440, height: 900 }, 4800);
+  const targetEnd = Intro.prototype.targetLayout.call({ width: 1440, height: 900 }, 7350);
   assert.deepEqual(targetStart, targetEnd, "Bullseye anchor does not jump during transformation");
   sandbox.innerWidth = 1440; sandbox.innerHeight = 900; sandbox.devicePixelRatio = 2;
-  const geometry = { canvas: {}, context: { setTransform() {} }, pixelWorld: {}, running: false, targetLayout: Intro.prototype.targetLayout };
+  const geometry = { canvas: {}, context: { setTransform() {} }, pixelWorld: {}, portal:{}, running: false, targetLayout: Intro.prototype.targetLayout };
   Intro.prototype.resize.call(geometry);
   assert.equal(geometry.canvas.width, 1920, "Cinematic canvas retains high resolution");
   assert.ok(geometry.pixelWorld.width < geometry.canvas.width / 2, "Pixel world is a separate low-res layer");
@@ -91,10 +99,10 @@ async function main() {
   assert.ok(!code.includes("intro-archer-taegeuk"), "Old pixel archer is no longer used");
   assert.ok(code.includes("class CinematicIntroAnimation"));
 
-  for (const file of ["index.html", "styles.css", "app.js", "intro.js", ...["archer-poses.webp", "arena.webp", "target.webp", "arrow.webp", "manifest.json"].map(file => `${directory}/${file}`)]) {
+  for (const file of ["index.html", "styles.css", "app.js", "intro.js", "intro-motion.js", ...["archer-poses.webp", "arena.webp", "target.webp", "arrow.webp", "manifest.json"].map(file => `${directory}/${file}`)]) {
     const source = await fs.readFile(path.join(root, file)), deployed = await fs.readFile(path.join(root, "dist", file));
     assert.ok(source.equals(deployed), `Root / deployment copy matches: ${file}`);
   }
-  console.log(JSON.stringify({ pass: true, distinctPoses: hashes.size, photographicPoseResolution: `${size}x${size}`, timeline: timeline.map(([, name]) => name), exactBullseyeAnchor: true, directLinksSkip: true, sessionReplaySkip: true, persistentVisitSkip: true, reloadAlwaysSkip: true, reducedMotion: true, distParity: true }, null, 2));
+  console.log(JSON.stringify({ pass: true, distinctKeyPoses: hashes.size, interpolatedDrawSamples:intermediate.size, durationMilliseconds:8000, photographicPoseResolution: `${size}x${size}`, timeline: timeline.map(([, name]) => name), exactBullseyeAnchor: true, directLinksSkip: true, sessionReplaySkip: true, persistentVisitSkip: true, reloadAlwaysSkip: true, reducedMotion: true, distParity: true }, null, 2));
 }
 main().catch(error => { console.error(error); process.exitCode = 1; });
