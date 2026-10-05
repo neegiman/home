@@ -1,74 +1,73 @@
-/* Original archery opening. No tournament state, participant data, or remote assets. */
+/* Cinematic archery -> pixel-world opening. Independent of tournament state. */
 (() => {
   "use strict";
   const clamp = (n, a = 0, b = 1) => Math.max(a, Math.min(b, n));
   const mix = (a, b, t) => a + (b - a) * t;
-  const smooth = (t) => { t = clamp(t); return t * t * (3 - 2 * t); };
+  const smooth = t => { t = clamp(t); return t * t * (3 - 2 * t); };
+  // Preserve visit records when replacing artwork, so returning players skip it.
   const STORAGE_KEY = `pixel-clash:opening:v1:${new URL(".", location.href).pathname}`;
   const SEQUENCE = Object.freeze([
-    ["INTRO_DARK", 0, 200], ["ARCHER_DRAW", 200, 1800],
-    ["FULL_TENSION", 1800, 2100], ["ARROW_RELEASE", 2100, 2350],
-    ["ARROW_FOLLOW", 2350, 3500], ["TARGET_HIT", 3500, 4500],
-    ["TITLE_REVEAL", 4500, 5000], ["PAGE_TRANSITION", 5000, 5300]
+    ["INTRO_DARK", 0, 120], ["ARCHER_REAR_VIEW", 120, 1200],
+    ["BOW_DRAW", 1200, 2200], ["ARROW_RELEASE", 2200, 3000],
+    ["TARGET_HIT", 3000, 4000], ["TARGET_PIXEL_TRANSFORM", 4000, 4750],
+    ["PIXEL_CLASH_TRANSITION", 4750, 5000]
   ]);
+  const POSES = [[0,0],[650,1],[1150,2],[1410,3],[1640,4],[1900,5],[2200,6],[2320,7],[2450,8]];
   const GLYPHS = {
-    P: ["11110","10001","10001","11110","10000","10000","10000"],
-    I: ["11111","00100","00100","00100","00100","00100","11111"],
-    X: ["10001","10001","01010","00100","01010","10001","10001"],
-    E: ["11111","10000","10000","11110","10000","10000","11111"],
-    L: ["10000","10000","10000","10000","10000","10000","11111"],
-    C: ["01111","10000","10000","10000","10000","10000","01111"],
-    A: ["01110","10001","10001","11111","10001","10001","10001"],
-    S: ["01111","10000","10000","01110","00001","00001","11110"],
-    H: ["10001","10001","10001","11111","10001","10001","10001"]
+    P:["11110","10001","10001","11110","10000","10000","10000"],
+    I:["11111","00100","00100","00100","00100","00100","11111"],
+    X:["10001","10001","01010","00100","01010","10001","10001"],
+    E:["11111","10000","10000","11110","10000","10000","11111"],
+    L:["10000","10000","10000","10000","10000","10000","11111"],
+    C:["01111","10000","10000","10000","10000","10000","01111"],
+    A:["01110","10001","10001","11111","10001","10001","10001"],
+    S:["01111","10000","10000","01110","00001","00001","11110"],
+    H:["10001","10001","10001","11111","10001","10001","10001"]
   };
 
-  class IntroAnimation {
+  class CinematicIntroAnimation {
     static active = null;
     static seen = false;
     static rememberVisit() {
-      IntroAnimation.seen = true;
+      CinematicIntroAnimation.seen = true;
       for (const name of ["localStorage", "sessionStorage"]) {
-        try { window[name].setItem(STORAGE_KEY, "seen"); } catch (_) { /* Private browsing / blocked storage is optional. */ }
+        try { window[name].setItem(STORAGE_KEY, "seen"); } catch (_) { /* Optional storage. */ }
       }
     }
     static shouldPlay(params = new URLSearchParams(location.search)) {
       if (params.get("mode") === "tournament" || params.has("share")) return false;
-      // Reload must never restart the opening, even if storage is unavailable.
       if (window.performance?.getEntriesByType?.("navigation")?.[0]?.type === "reload") return false;
-      if (params.get("intro") === "1") return true; // Explicit debug navigation only; reload still skips.
+      if (params.get("intro") === "1") return true; // Explicit preview, never a reload.
       for (const name of ["localStorage", "sessionStorage"]) {
-        try { if (window[name].getItem(STORAGE_KEY) === "seen") return false; } catch (_) { /* Check the other store. */ }
+        try { if (window[name].getItem(STORAGE_KEY) === "seen") return false; } catch (_) { /* Try the other store. */ }
       }
-      return !IntroAnimation.seen;
+      return !CinematicIntroAnimation.seen;
     }
 
     constructor(canvas, { view, skipButton, caption, onReveal, onComplete } = {}) {
-      this.canvas = canvas;
-      this.context = canvas.getContext("2d", { alpha: true });
-      this.view = view;
-      this.skipButton = skipButton;
-      this.caption = caption;
-      this.onReveal = onReveal || (() => {});
-      this.onComplete = onComplete || (() => {});
-      this.elapsed = 0;
-      this.frameId = 0;
-      this.running = false;
-      this.ready = false;
-      this.revealed = false;
+      this.canvas = canvas; this.context = canvas.getContext("2d", { alpha: true });
+      this.view = view; this.skipButton = skipButton; this.caption = caption;
+      this.onReveal = onReveal || (() => {}); this.onComplete = onComplete || (() => {});
+      this.elapsed = 0; this.frameId = 0; this.running = false; this.ready = false; this.revealed = false;
       this.controller = new AbortController();
-      this.camera = { x: 0, y: 0, zoom: 1, shakeX: 0, shakeY: 0 };
-      this.arrow = { x: 0, y: 0, angle: 0 };
       this.reduced = matchMedia("(prefers-reduced-motion: reduce)").matches;
-      this.duration = this.reduced ? 600 : 5300;
+      this.duration = this.reduced ? 600 : 5000;
+      this.camera = { x: 0, y: 0, zoom: 1, shakeX: 0, shakeY: 0 };
       const tokens = getComputedStyle(document.documentElement);
-      this.palette = Object.fromEntries(["ink","navy","panel","panel-2","line","cream","gold","orange","red","blue","blue-dark","muted"].map(key => [key, tokens.getPropertyValue(`--${key}`).trim()]));
-      this.archer = new Image();
-      this.arena = new Image();
-      this.archer.decoding = this.arena.decoding = "async";
-      this.archer.src = "assets/characters/intro-archer-taegeuk-v2.png";
-      this.arena.src = "assets/backgrounds/champion-arena.png";
-      this.logo = this.createLogo();
+      this.palette = Object.fromEntries(["ink","navy","panel","panel-2","line","cream","gold","orange","red","blue","blue-dark"].map(key => [key,tokens.getPropertyValue(`--${key}`).trim()]));
+      this.assets = [];
+      const loadImage = path => {
+        const image = new Image(); image.decoding = "async"; image.src = path; this.assets.push(image); return image;
+      };
+      // Photographic assets are loaded only when the opening is instantiated.
+      if (!this.reduced) {
+        this.archer = loadImage("assets/intro/cinematic-v3/archer-poses.webp");
+        this.arena = loadImage("assets/intro/cinematic-v3/arena.webp");
+        this.target = loadImage("assets/intro/cinematic-v3/target.webp");
+        this.arrowImage = loadImage("assets/intro/cinematic-v3/arrow.webp");
+      }
+      this.gameArena = loadImage("assets/backgrounds/champion-arena.png");
+      this.pixelWorld = document.createElement("canvas"); this.logo = this.createLogo();
       const { signal } = this.controller;
       skipButton?.addEventListener("click", () => this.finish("skip"), { signal });
       window.addEventListener("keydown", event => { if (event.key === "Escape") this.finish("skip"); }, { signal });
@@ -82,306 +81,308 @@
 
     async start() {
       if (this.running) return;
-      IntroAnimation.active?.finish("replaced");
-      IntroAnimation.active = this;
-      this.running = true;
-      IntroAnimation.rememberVisit();
-      document.documentElement.classList.remove("intro-pending");
-      document.body.classList.add("intro-playing");
-      this.view.hidden = false;
-      this.skipButton.hidden = false;
-      this.caption.hidden = false;
-      this.canvas.dataset.running = "true";
-      this.resize();
-      this.draw(0);
+      CinematicIntroAnimation.active?.finish("replaced");
+      CinematicIntroAnimation.active = this; this.running = true;
+      CinematicIntroAnimation.rememberVisit();
+      document.documentElement.classList.remove("intro-pending"); document.body.classList.add("intro-playing");
+      this.view.hidden = false; this.skipButton.hidden = false; this.caption.hidden = false;
+      this.canvas.dataset.running = "true"; this.canvas.dataset.pixelCoverage = "0";
+      delete this.canvas.dataset.fallback; delete this.canvas.dataset.spriteFrame;
+      this.resize(); this.draw(0);
       const loaded = this.reduced || await this.waitForAssets();
       if (!this.running) return;
-      if (!loaded) { this.reduced = true; this.duration = 600; }
-      this.ready = true;
-      this.lastTime = performance.now();
+      if (!loaded) { this.reduced = true; this.duration = 600; this.canvas.dataset.fallback = "asset-timeout"; }
+      this.ready = true; this.lastTime = performance.now();
       if (!document.hidden) this.queueFrame();
     }
 
     waitForAssets() {
-      const imageReady = image => image.complete
-        ? Promise.resolve(Boolean(image.naturalWidth))
-        : new Promise(resolve => {
-          const done = () => { image.removeEventListener("load", done); image.removeEventListener("error", done); resolve(Boolean(image.naturalWidth)); };
-          image.addEventListener("load", done, { once: true }); image.addEventListener("error", done, { once: true });
-          this.controller.signal.addEventListener("abort", done, { once: true });
-        });
+      const imageReady = image => image.complete ? Promise.resolve(Boolean(image.naturalWidth)) : new Promise(resolve => {
+        const done = () => {
+          image.removeEventListener("load", done); image.removeEventListener("error", done);
+          this.controller.signal.removeEventListener("abort", done); resolve(Boolean(image.naturalWidth));
+        };
+        image.addEventListener("load", done, { once: true }); image.addEventListener("error", done, { once: true });
+        this.controller.signal.addEventListener("abort", done, { once: true });
+      });
       return new Promise(resolve => {
-        this.assetTimer = setTimeout(() => resolve(false), 1800);
-        Promise.all([imageReady(this.archer), imageReady(this.arena)]).then(results => { clearTimeout(this.assetTimer); resolve(results.every(Boolean)); });
+        this.assetTimer = setTimeout(() => resolve(false), 2500);
+        Promise.all(this.assets.map(imageReady)).then(results => { clearTimeout(this.assetTimer); resolve(results.every(Boolean)); });
       });
     }
 
     resize() {
-      const w = innerWidth, h = innerHeight;
-      // The existing sprites use 128px cells. Render to a low-resolution world,
-      // not a HiDPI illustration, and let nearest-neighbor scaling expose pixels.
-      this.width = Math.min(768, Math.max(320, Math.round(w / 2)));
-      this.height = Math.round(this.width * h / w);
-      this.canvas.width = this.width; this.canvas.height = this.height;
-      this.context.imageSmoothingEnabled = false;
-      this.cssPixel = this.width / w;
+      this.width = innerWidth; this.height = innerHeight;
+      // Smooth HiDPI cinema before impact. Only the game layer is low-resolution.
+      this.dpr = Math.min(devicePixelRatio || 1, 2, 1920 / this.width);
+      this.canvas.width = Math.round(this.width * this.dpr); this.canvas.height = Math.round(this.height * this.dpr);
+      this.context.setTransform(this.dpr,0,0,this.dpr,0,0);
+      this.context.imageSmoothingEnabled = true; this.context.imageSmoothingQuality = "high";
+      this.pixelScale = this.width < 700 ? 2 : 3;
+      this.pixelWorld.width = Math.ceil(this.width / this.pixelScale); this.pixelWorld.height = Math.ceil(this.height / this.pixelScale);
+      this.worldDirty = true;
+      const target = this.targetLayout(3000), block = this.pixelScale * 4;
+      this.cells = [];
+      const maxDistance = Math.max(...[[0,0],[this.width,0],[0,this.height],[this.width,this.height]].map(([x,y]) => Math.hypot(x-target.x,y-target.y)));
+      for (let y=0; y<this.height; y+=block) for (let x=0; x<this.width; x+=block) {
+        const distance = Math.hypot(x+block/2-target.x,y+block/2-target.y);
+        const noise = (Math.sin(x*12.9898+y*78.233)*43758.5453)%1;
+        // Target first, then arena: a radial front, not a global downsample.
+        const threshold = distance <= target.r*1.12 ? distance/(target.r*1.12)*.48 : .48+(distance-target.r*1.12)/(maxDistance-target.r*1.12)*.49;
+        this.cells.push({ x,y,size:block,at:clamp(threshold+noise*.016,0,.99) });
+      }
       if (this.running) this.draw(this.elapsed);
     }
 
     queueFrame() {
       if (this.frameId || !this.running) return;
       this.frameId = requestAnimationFrame(now => {
-        this.frameId = 0;
-        if (!this.running) return;
-        this.update(Math.min(100, Math.max(0, now - this.lastTime)));
-        this.lastTime = now;
+        this.frameId = 0; if (!this.running) return;
+        this.update(Math.min(100,Math.max(0,now-this.lastTime))); this.lastTime = now;
         if (this.elapsed >= this.duration) { this.finish("complete"); return; }
-        this.draw(this.elapsed);
-        this.queueFrame();
+        this.draw(this.elapsed); this.queueFrame();
       });
     }
-
     update(deltaTime) { this.elapsed += deltaTime; }
     stateAt(elapsed) {
-      if (this.reduced) return elapsed < 450 ? { name: "TITLE_REVEAL", progress: 1 } : { name: "PAGE_TRANSITION", progress: clamp((elapsed - 450) / 150) };
-      const entry = SEQUENCE.find(([, start, end]) => elapsed >= start && elapsed < end) || SEQUENCE.at(-1);
-      return { name: entry[0], progress: clamp((elapsed - entry[1]) / (entry[2] - entry[1])) };
+      if (this.reduced) return { name:"PIXEL_CLASH_TRANSITION", progress:clamp((elapsed-450)/150) };
+      const entry = SEQUENCE.find(([,start,end]) => elapsed >= start && elapsed < end) || SEQUENCE.at(-1);
+      return { name:entry[0], progress:clamp((elapsed-entry[1])/(entry[2]-entry[1])) };
     }
 
-    pixel(x, y, w, h, color, alpha = 1) {
-      this.context.globalAlpha = alpha;
-      this.context.fillStyle = color;
-      this.context.fillRect(Math.round(x), Math.round(y), Math.max(1, Math.round(w)), Math.max(1, Math.round(h)));
-      this.context.globalAlpha = 1;
-    }
-
-    updateCamera(elapsed, state) {
-      this.camera = { x: 0, y: 0, zoom: 1, shakeX: 0, shakeY: 0 };
-      if (elapsed < 2100) this.camera.zoom = 1 + .035 * smooth((Math.min(elapsed,1800) - 1200) / 600);
-      if (state.name === "ARROW_RELEASE" && elapsed < 2180) this.camera.shakeX = Math.sin(elapsed * .17) * 2 * this.cssPixel;
-      if (state.name === "ARROW_FOLLOW") {
-        const t = state.progress;
-        this.arrow.x = 1500 * t + 240 * t * t;
-        this.arrow.y = this.height * .48 - 10 * Math.sin(Math.PI * t) + 2 * (t * t - t);
-        this.arrow.angle = Math.atan2(-10 * Math.PI * Math.cos(Math.PI * t) + 4 * t - 2, 1500 + 480 * t);
-        this.camera.x = this.arrow.x - this.width * mix(.38,.56,t);
-      }
-      if (state.name === "TARGET_HIT" && elapsed < 3660) {
-        const fade = 1 - (elapsed - 3500) / 160;
-        this.camera.shakeX = Math.sin(elapsed * .13) * 3 * this.cssPixel * fade;
-        this.camera.shakeY = Math.cos(elapsed * .19) * 2 * this.cssPixel * fade;
+    updateCamera(elapsed) {
+      const flight = smooth((elapsed-2450)/550);
+      this.camera.zoom = elapsed < 2450 ? 1+.025*smooth((elapsed-1450)/450) : mix(1.025,1.24,flight);
+      this.camera.x = flight*.035*this.width; this.camera.y = flight*.018*this.height;
+      this.camera.shakeX = this.camera.shakeY = 0;
+      if (elapsed>=2200 && elapsed<2280) this.camera.shakeX = Math.sin(elapsed*.14)*1.8*(1-(elapsed-2200)/80);
+      if (elapsed>=3000 && elapsed<3150) {
+        const decay = 1-(elapsed-3000)/150;
+        this.camera.shakeX = Math.sin(elapsed*.12)*3*decay; this.camera.shakeY = Math.cos(elapsed*.17)*2*decay;
       }
     }
 
-    drawArena(elapsed, state) {
-      const c = this.context, w = this.width, h = this.height;
-      this.pixel(0,0,w,h,this.palette.ink);
-      if (!this.arena.naturalWidth) return;
-      const scale = Math.max(w / this.arena.naturalWidth, h / this.arena.naturalHeight);
-      const iw = this.arena.naturalWidth * scale, ih = this.arena.naturalHeight * scale;
-      const left = (w-iw)/2, top = (h-ih)/2;
-      const travel = state.name === "ARROW_FOLLOW" ? this.arrow.x : ["TARGET_HIT","TITLE_REVEAL","PAGE_TRANSITION"].includes(state.name) ? 1740 : 0;
-      // Keep stadium architecture continuous. Independent near planes provide
-      // parallax without cutting a flattened background into misaligned bands.
-      const offset=travel*.035%iw;
-      for(let copy=-1;copy<=1;copy++)c.drawImage(this.arena,Math.round(left-offset+copy*iw),Math.round(top),Math.round(iw),Math.round(ih));
-      this.pixel(0,0,w,h,this.palette.navy,.76);
-      this.pixel(0,h*.64,w,h*.36,this.palette.ink,.25);
-      if(state.name==="ARROW_FOLLOW"||state.name==="TARGET_HIT"){
-        for(let i=-1;i<Math.ceil(w/110)+2;i++){
-          const x=i*110-(travel*.12%110);
-          this.pixel(x,h*.67,3,28,this.palette.line,.4);
-          this.pixel(x+4,h*.68,15,24,this.palette.red,.20);
-          this.pixel(x+8,h*.70,5,2,this.palette.gold,.35);
+    cover(c, image, w, h, zoom=1, ox=0, oy=0) {
+      if (!image?.naturalWidth) return;
+      const scale = Math.max(w/image.naturalWidth,h/image.naturalHeight)*zoom;
+      const iw = image.naturalWidth*scale, ih = image.naturalHeight*scale;
+      c.drawImage(image,(w-iw)/2+ox,(h-ih)/2+oy,iw,ih);
+    }
+
+    drawArena(elapsed) {
+      const c=this.context,w=this.width,h=this.height;
+      c.fillStyle="#04070e"; c.fillRect(0,0,w,h);
+      this.cover(c,this.arena,w,h,this.camera.zoom,-this.camera.x,-this.camera.y);
+      const flight=smooth((elapsed-2450)/550);
+      c.fillStyle="rgba(3,9,20,.16)"; c.fillRect(0,0,w,h);
+      const haze=c.createLinearGradient(0,h*.28,0,h);
+      haze.addColorStop(0,"rgba(36,58,89,.02)"); haze.addColorStop(.5,"rgba(36,58,89,.12)"); haze.addColorStop(1,"rgba(1,4,9,.62)");
+      c.fillStyle=haze; c.fillRect(0,0,w,h);
+      if (flight>0 && elapsed<3000) {
+        c.save(); c.globalAlpha=Math.sin(flight*Math.PI)*.17; c.lineWidth=1.5;
+        for(let i=0;i<12;i++) {
+          const x=(i+.5)/12*w, shift=(flight*430*(i%3+1))%w;
+          c.strokeStyle=i%2?"#87aac6":"#e1d1ac"; c.beginPath();
+          c.moveTo(x-shift,h*.71); c.lineTo(x-shift-w*.12,h*.83); c.stroke();
         }
-        for(let i=-1;i<Math.ceil(w/18)+2;i++){
-          const x=i*18-(travel*.23%18),y=h*.79-(i%3)*3;
-          this.pixel(x,y,4,4,this.palette.ink,.85);this.pixel(x-2,y+4,8,7,this.palette.ink,.85);
-        }
-        this.pixel(0,h*.87,w,9,this.palette.navy,.85);
-        for(let i=-1;i<Math.ceil(w/120)+2;i++){
-          const x=i*120-(travel*.46%120);
-          this.pixel(x,h*.82,6,h*.18,this.palette.ink,.94);
-          this.pixel(x-3,h*.82,12,3,this.palette.line,.7);
-        }
+        c.restore();
       }
-      // Torch flicker becomes almost still at maximum tension.
-      if (elapsed < 1800) for (let i=0;i<6;i++) {
-        const flicker=.12+Math.sin(Math.floor(elapsed/100)+i*2)*.04;
-        this.pixel(w*(.08+i*.17),h*.57,2,4,this.palette.gold,flicker);
-      }
+      const vignette=c.createRadialGradient(w*.52,h*.43,Math.min(w,h)*.12,w*.5,h*.5,Math.max(w,h)*.70);
+      vignette.addColorStop(0,"rgba(0,0,0,0)"); vignette.addColorStop(1,"rgba(0,0,0,.65)");
+      c.fillStyle=vignette; c.fillRect(0,0,w,h);
     }
 
     archerLayout() {
-      const size = Math.min(460,this.width*.92,this.height*1.12);
-      return { size, x:this.width*.46, y:this.height*.48+size*.54 };
+      const size=Math.min(this.height*.95,this.width*1.5);
+      return { size, x:this.width*(this.width<700?.24:.33), bottom:this.height*1.04 };
     }
-
-    drawArcher(elapsed, state) {
-      if (!this.archer.naturalWidth) return;
-      const c=this.context, {size,x,y}=this.archerLayout();
-      let frame=elapsed<800?0:Math.min(5,1+Math.floor((elapsed-800)/200));
-      if(state.name==="ARROW_RELEASE")frame=6+Math.min(2,Math.floor(state.progress*3));
-      const alpha=smooth((elapsed-450)/250);
-      const cell=this.archer.naturalWidth/3;
+    poseAt(elapsed) {
+      let index=0;
+      while(index<POSES.length-1 && elapsed>=POSES[index+1][0]) index++;
+      return { frame:POSES[index][1], previous:POSES[Math.max(0,index-1)][1], blend:index?clamp((elapsed-POSES[index][0])/90):1 };
+    }
+    drawArcher(elapsed) {
+      if (!this.archer?.naturalWidth || elapsed>=2710) return;
+      const c=this.context,{size,x,bottom}=this.archerLayout(),cell=this.archer.naturalWidth/3;
+      const {frame,previous,blend}=this.poseAt(elapsed);
       this.canvas.dataset.spriteFrame=String(frame);
-      c.save();c.globalAlpha=alpha;
-      c.translate(Math.round(x),Math.round(y));c.scale(this.camera.zoom,this.camera.zoom);
-      c.drawImage(this.archer,frame%3*cell,Math.floor(frame/3)*cell,cell,cell*(100/128),-size*.5,-size*(124/128),size,size*(100/128));
-      c.restore();
-      // Frame a bow / hands close-up, never floating boots in front of a stage.
-      const fadeTop=y-size*.34, fadeBottom=y-size*.18;
-      for(let band=0;band<8;band++)this.pixel(0,fadeTop+(fadeBottom-fadeTop)*band/8,this.width,(fadeBottom-fadeTop)/8+1,this.palette.navy,(band+1)/8);
-      this.pixel(0,fadeBottom,this.width,this.height-fadeBottom,this.palette.navy);
-      // Tiny sparks stop before the 1.8–2.1s silence, not a bouncing character.
-      if(elapsed>850&&elapsed<1500)for(let i=0;i<4;i++)this.pixel(x+size*.28+(i%2)*5,y-size*.48-i*6,1,1,this.palette.gold,.35);
-      if(state.name==="ARROW_RELEASE"){
-        const t=state.progress;
-        this.drawArrow(x+size*.40+t*this.width*.65,y-size*.54,-.015,Math.min(3.4,size/128*1.5),4);
-        if(elapsed<2160)this.pixel(0,0,this.width,this.height,this.palette.cream,.12*(1-(elapsed-2100)/60));
-      }
+      const leave=1-smooth((elapsed-2500)/210), reveal=smooth((elapsed-160)/420);
+      c.save(); c.translate(x,bottom); c.scale(-1,1);
+      const drawPose=(which,alpha)=>{
+        if(alpha<=0)return;
+        c.globalAlpha=alpha*leave*reveal;
+        // Fixed hip anchor: actual body/arm/bow/hair poses, never sprite rotation.
+        c.drawImage(this.archer,which%3*cell,Math.floor(which/3)*cell,cell,cell,-size*(285/448),-size*(430/448),size,size);
+      };
+      if(blend<1)drawPose(previous,1-blend);
+      drawPose(frame,blend); c.restore();
+      const shadow=c.createLinearGradient(0,this.height*.82,0,this.height);
+      shadow.addColorStop(0,"rgba(0,0,0,0)"); shadow.addColorStop(1,"rgba(0,0,0,.55)");
+      c.fillStyle=shadow; c.fillRect(0,this.height*.82,this.width,this.height*.18);
     }
 
-    drawSpotlight(elapsed) {
-      const {x,y,size}=this.archerLayout(), c=this.context;
-      const opacity=.20*smooth((elapsed-200)/400);
-      // Stepped light cone / shadow bands share the game's pixel grid.
-      for(let row=0;row<18;row++){
-        const py=this.height*.08+row*this.height*.047;
-        const spread=12+row*5;
-        this.pixel(x-spread,py,spread*2,this.height*.047+1,this.palette.cream,opacity*(1-row/24));
+    targetLayout(elapsed) {
+      const close=smooth((elapsed-2450)/550),w=this.width,h=this.height;
+      return { x:mix(w*.67,w*.5,close), y:mix(h*(w<700?.67:.51),h*.46,close), r:mix(Math.min(w,h)*.047,Math.min(w*.39,h*.31),close) };
+    }
+    drawTarget(elapsed) {
+      if (!this.target?.naturalWidth) return;
+      const c=this.context,{x,y,r}=this.targetLayout(elapsed);
+      // Projectile, photographic disc, close-up and pixel target share this anchor.
+      c.save(); c.shadowColor="rgba(0,0,0,.6)"; c.shadowBlur=r*.12; c.shadowOffsetY=r*.04;
+      c.drawImage(this.target,x-r,y-r,r*2,r*2); c.restore();
+      const stand=c.createLinearGradient(x-r*.3,0,x+r*.3,0);
+      stand.addColorStop(0,"#090d11"); stand.addColorStop(.5,"#36424a"); stand.addColorStop(1,"#070b11");
+      c.strokeStyle=stand; c.lineWidth=Math.max(2,r*.035);
+      c.beginPath();c.moveTo(x-r*.38,y+r*.85);c.lineTo(x-r*.52,y+r*1.43);c.moveTo(x+r*.38,y+r*.85);c.lineTo(x+r*.52,y+r*1.43);c.stroke();
+      if(elapsed>=3000)this.drawArrow(x,y,r*.9,-.39,false);
+    }
+    drawArrow(x,y,length,angle,pixel=false,trail=0,context=this.context) {
+      const c=context;c.save();c.translate(x,y);c.rotate(angle);
+      const thickness=Math.max(pixel?1:1.3,length*.012);
+      if(trail) {
+        const g=c.createLinearGradient(-length-trail,0,-length,0);
+        g.addColorStop(0,"rgba(201,217,225,0)");g.addColorStop(1,"rgba(233,225,197,.34)");
+        c.fillStyle=g;c.fillRect(-length-trail,-thickness,trail,thickness*2);
+      }
+      if(!pixel && this.arrowImage?.naturalWidth) {
+        const height=length*this.arrowImage.naturalHeight/this.arrowImage.naturalWidth;
+        c.drawImage(this.arrowImage,-length,-height/2,length,height);c.restore();return;
+      }
+      c.fillStyle=pixel?this.palette.cream:"#d5cdb5";c.fillRect(-length,-thickness*.5,length,thickness);
+      c.fillStyle=pixel?this.palette.gold:"#444d55";c.fillRect(-length,-thickness*.5,length,thickness*.35);
+      c.fillStyle=pixel?this.palette.red:"#b52442";
+      c.beginPath();c.moveTo(-length,0);c.lineTo(-length*.84,-thickness*4);c.lineTo(-length*.69,-thickness*3);c.lineTo(-length*.76,0);c.closePath();c.fill();
+      c.fillStyle=pixel?this.palette.cream:"#eee9df";
+      c.beginPath();c.moveTo(-length,0);c.lineTo(-length*.88,thickness*4);c.lineTo(-length*.71,thickness*3);c.lineTo(-length*.77,0);c.closePath();c.fill();
+      c.fillStyle=pixel?this.palette.gold:"#adb6bd";
+      c.beginPath();c.moveTo(0,0);c.lineTo(-thickness*6,-thickness*2);c.lineTo(-thickness*6,thickness*2);c.closePath();c.fill();c.restore();
+    }
+    drawFlight(elapsed) {
+      if(elapsed<2200 || elapsed>=3000)return;
+      const t=clamp((elapsed-2200)/800),target=this.targetLayout(elapsed),archer=this.archerLayout();
+      const start={x:archer.x+archer.size*(285/448-.27),y:archer.bottom-archer.size*(430/448-.44)};
+      const x=mix(start.x,target.x,t),y=mix(start.y,target.y,t)-Math.sin(t*Math.PI)*this.height*.045;
+      const angle=mix(Math.atan2(target.y-start.y,target.x-start.x),-.39,smooth((t-.6)/.4));
+      if(elapsed<2270) {
+        const c=this.context,fade=1-(elapsed-2200)/70;
+        const light=c.createRadialGradient(start.x,start.y,0,start.x,start.y,22);
+        light.addColorStop(0,`rgba(251,240,215,${.45*fade})`);light.addColorStop(1,"rgba(251,240,215,0)");
+        c.fillStyle=light;c.fillRect(start.x-22,start.y-22,44,44);
+      }
+      // Perspective, a small trajectory and lens trail, not simple x translation.
+      this.drawArrow(x,y,mix(this.width*.19,target.r*.9,t),angle,false,this.width*.14*(1-t));
+    }
+    drawImpact(elapsed) {
+      const age=elapsed-3000;if(age<0 || age>570)return;
+      const c=this.context,{x,y,r}=this.targetLayout(3000),t=age/570;
+      if(age<80){c.fillStyle=`rgba(255,235,190,${.16*(1-age/80)})`;c.fillRect(0,0,this.width,this.height);}
+      for(let i=0;i<16;i++) {
+        const angle=i*2.399,speed=r*(.14+(i%5)*.06),px=x+Math.cos(angle)*speed*t,py=y+Math.sin(angle)*speed*t+r*.15*t*t;
+        c.globalAlpha=(1-t)*.8;c.fillStyle=i%3?"#d1ad73":"#eddcc0";
+        c.beginPath();c.ellipse(px,py,i%4===0?2:1,.7,angle,0,Math.PI*2);c.fill();
       }
       c.globalAlpha=1;
-      this.pixel(x-size*.25,y+1,size*.5,3,this.palette.ink,.8);
     }
 
-    drawArrow(x,y,angle=0,scale=1,trail=0) {
-      const c=this.context;c.save();c.translate(Math.round(x),Math.round(y));c.rotate(angle);c.scale(scale,scale);
-      for(let i=trail;i>0;i--){this.pixel(-35-i*7,-1+(i%2),5,2,i%2?this.palette.gold:this.palette.cream,(1-i/(trail+1))*.32);}
-      this.pixel(-34,-1,29,2,this.palette.cream);
-      this.pixel(-31,-2,5,1,this.palette.gold);
-      this.pixel(-34,-4,8,2,this.palette.red);this.pixel(-34,2,8,2,this.palette.red);
-      this.pixel(-7,-3,3,6,this.palette.line);this.pixel(-4,-2,2,4,this.palette.gold);this.pixel(-2,-1,2,2,this.palette.cream);
-      c.restore();
-    }
-
-    drawTarget(x,y,radius,age=0) {
-      const c=this.context;c.save();c.translate(Math.round(x),Math.round(y));
-      const r=Math.round(radius);
-      if(this.targetRadius!==r){
-        this.targetRadius=r;
-        const target=document.createElement("canvas"),center=r+6;
-        target.width=center*2;target.height=Math.ceil(r*2.55+12);
-        const tc=target.getContext("2d");tc.translate(center,center);
-        const block=(px,py,pw,ph,color)=>{tc.fillStyle=color;tc.fillRect(Math.round(px),Math.round(py),Math.max(1,Math.round(pw)),Math.max(1,Math.round(ph)))};
-        block(-r*.65,r,r*.13,r*.5,this.palette.line);block(r*.52,r,r*.13,r*.5,this.palette.line);
-        block(-r*.72,r*1.45,r*1.45,3,this.palette.gold);
-        // Quantized circular rings, with wood grain, cached as local pixels.
-        for(let py=-r-4;py<=r+4;py+=2)for(let px=-r-4;px<=r+4;px+=2){
-          const distance=Math.hypot(px+1,py+1)/r;if(distance>1.065)continue;
-          const color=distance>1?this.palette.ink:distance>.90?this.palette.gold:distance>.65?this.palette.cream:distance>.43?this.palette.blue:distance>.21?this.palette.red:this.palette.gold;
-          block(px,py,2,2,color);
-          if(distance>.92&&(px+py)%14===0)block(px,py,2,1,this.palette.orange);
-        }
-        block(-1,-1,2,2,this.palette.cream);
-        this.targetSprite=target;
+    buildPixelWorld() {
+      if(!this.worldDirty)return;
+      const c=this.pixelWorld.getContext("2d"),w=this.pixelWorld.width,h=this.pixelWorld.height,s=this.pixelScale;
+      c.imageSmoothingEnabled=false;c.fillStyle=this.palette.ink;c.fillRect(0,0,w,h);
+      this.cover(c,this.gameArena,w,h);c.fillStyle="rgba(8,10,24,.52)";c.fillRect(0,0,w,h);
+      const target=this.targetLayout(3000),x=Math.round(target.x/s),y=Math.round(target.y/s),r=Math.round(target.r/s);
+      // Newly drawn game art, not a globally downsampled photograph.
+      c.fillStyle=this.palette.line;c.fillRect(x-r*.4,y+r*.85,3,r*.6);c.fillRect(x+r*.4-3,y+r*.85,3,r*.6);
+      for(let py=-r-2;py<r+2;py+=2)for(let px=-r-2;px<r+2;px+=2) {
+        const d=Math.hypot(px+1,py+1)/r;if(d>1.025)continue;
+        c.fillStyle=d>1?this.palette.ink:d>.81?this.palette.cream:d>.61?this.palette.navy:d>.40?this.palette.blue:d>.19?this.palette.red:this.palette.gold;
+        c.fillRect(x+px,y+py,2,2);
+        if(d>.94 && (px+py)%12===0){c.fillStyle=this.palette.gold;c.fillRect(x+px,y+py,2,1);}
       }
-      c.drawImage(this.targetSprite,-r-6,-r-6);
-      if(age>=0&&this.state.name==="TARGET_HIT")this.drawArrow(0,0,0,1.25,0);
-      c.restore();
+      this.drawArrow(x,y,r*.9,-.39,true,0,c);this.worldDirty=false;
     }
-
-    drawParticles(age,x,y) {
-      const t=age/650;if(t<0||t>1)return;
-      for(let i=0;i<16;i++){
-        const angle=i*2.399, speed=18+(i%5)*9;
-        const px=x+Math.cos(angle)*speed*t, py=y+Math.sin(angle)*speed*t+28*t*t;
-        const color=[this.palette.gold,this.palette.red,this.palette.cream,this.palette.orange][i%4];
-        this.pixel(px,py,i%3===0?3:2,2,color,1-t);
+    drawTransformation(progress) {
+      this.buildPixelWorld();const c=this.context,s=this.pixelScale;
+      c.save();c.imageSmoothingEnabled=false;let changed=0;
+      if(progress>=1) {
+        c.drawImage(this.pixelWorld,0,0,this.width,this.height);c.restore();
+        this.canvas.dataset.pixelCoverage="1.000";return;
       }
+      for(const cell of this.cells) {
+        if(progress<cell.at)continue;changed++;
+        c.drawImage(this.pixelWorld,cell.x/s,cell.y/s,cell.size/s,cell.size/s,cell.x,cell.y,cell.size,cell.size);
+        if(progress<1 && progress-cell.at<.026){c.globalAlpha=.45;c.fillStyle=cell.x%24?this.palette.gold:this.palette.blue;c.fillRect(cell.x,cell.y,cell.size,cell.size);c.globalAlpha=1;}
+      }
+      c.restore();this.canvas.dataset.pixelCoverage=(changed/this.cells.length).toFixed(3);
     }
-
     createLogo() {
       const logo=document.createElement("canvas");logo.width=66;logo.height=12;
       const c=logo.getContext("2d");let cursor=1;
-      for(const [index,letter] of [..."PIXEL CLASH"].entries()){
+      for(const [index,letter] of [..."PIXEL CLASH"].entries()) {
         if(letter===" "){cursor+=4;continue;}
-        GLYPHS[letter].forEach((row,y)=>[...row].forEach((bit,x)=>{if(bit==="1"){
+        GLYPHS[letter].forEach((row,y)=>[...row].forEach((bit,x)=>{if(bit==="1") {
           c.fillStyle=this.palette["panel-2"];c.fillRect(cursor+x+1,y+4,1,1);
           c.fillStyle=index<5?this.palette.gold:this.palette.cream;c.fillRect(cursor+x,y+1,1,1);
         }}));cursor+=6;
       }
       return logo;
     }
-
     drawTitle(elapsed) {
-      const w=this.width,h=this.height,c=this.context;
-      const t=this.reduced?1:clamp((elapsed-4500)/200);
-      const frame=Math.floor(t*8)/8;
-      const pop=frame<.6?mix(.8,1.1,frame/.6):mix(1.1,1,(frame-.6)/.4);
-      const logoW=Math.round(Math.min(w*.80,610)*pop),logoH=Math.round(logoW/66*12);
-      const x=Math.round((w-logoW)/2),y=Math.round(h*.48-logoH/2);
-      this.pixel(0,0,w,h,this.palette.ink,.88);
-      const pad=12;
-      this.pixel(x-pad-2,y-pad-2,logoW+pad*2+4,logoH+pad*2+4,this.palette.line);
-      this.pixel(x-pad,y-pad,logoW+pad*2,logoH+pad*2,this.palette.panel,.95);
-      c.drawImage(this.logo,x,y,logoW,logoH);
-      [[x-pad-2,y-pad-2],[x+logoW+pad-2,y+logoH+pad-2]].forEach(([sx,sy])=>this.pixel(sx,sy,4,4,this.palette.gold));
-      if(!this.reduced&&elapsed<4800)for(let i=0;i<8;i++){
-        const p=clamp((elapsed-4500)/300),angle=i*Math.PI/4;
-        this.pixel(w/2+Math.cos(angle)*(logoW*.45+18*p),h*.48+Math.sin(angle)*(logoH*.6+18*p),2,2,this.palette.gold,1-p);
-      }
+      const c=this.context,w=this.width,h=this.height;
+      const pop=this.reduced?1:mix(.94,1,Math.floor(clamp((elapsed-4650)/130)*4)/4);
+      const width=Math.round(Math.min(w*.78,680)*pop),height=width*12/66,x=(w-width)/2,y=h*.16-height/2;
+      c.save();c.imageSmoothingEnabled=false;
+      c.fillStyle=this.palette.line;c.fillRect(x-12,y-12,width+24,height+24);
+      c.fillStyle=this.palette.panel;c.fillRect(x-9,y-9,width+18,height+18);
+      c.drawImage(this.logo,x,y,width,height);c.restore();
     }
-
     transitionToRegistration(progress) {
-      if(!this.revealed){this.revealed=true;this.onReveal();this.caption.hidden=true;this.skipButton.hidden=true;}
-      const block=16, columns=Math.ceil(this.width/block);
-      for(let row=0;row*block<this.height;row++)for(let column=0;column<columns;column++){
-        const delay=(row/Math.ceil(this.height/block))*.72+(column%4)*.035;
-        if(progress>=delay)this.context.clearRect(column*block,row*block,block,block);
-      }
+      if(!this.revealed){this.revealed=true;this.onReveal();this.caption.hidden=true;}
+      if(progress<=0)return;
+      const c=this.context,center=this.targetLayout(3000);
+      const far=Math.hypot(Math.max(center.x,this.width-center.x),Math.max(center.y,this.height-center.y));
+      for(const cell of this.cells)if(Math.hypot(cell.x-center.x,cell.y-center.y)<far*progress*1.05)c.clearRect(cell.x,cell.y,cell.size,cell.size);
     }
-
     draw(elapsed) {
       this.state=this.stateAt(elapsed);
-      const {name,progress}=this.state,w=this.width,h=this.height,c=this.context;
-      this.canvas.dataset.state=name;
-      this.view.dataset.state=name;
-      this.updateCamera(elapsed,this.state);
-      c.clearRect(0,0,w,h);c.save();c.translate(Math.round(this.camera.shakeX),Math.round(this.camera.shakeY));
-      this.drawArena(elapsed,this.state);
-      if(["INTRO_DARK","ARCHER_DRAW","FULL_TENSION","ARROW_RELEASE"].includes(name)){
-        this.drawSpotlight(elapsed);this.drawArcher(elapsed,this.state);
-        this.pixel(0,0,w,h,this.palette.ink,1-smooth(elapsed/500));
-      }else if(name==="ARROW_FOLLOW"){
-        const targetX=1740-this.camera.x,targetY=h*.48;
-        if(targetX<w*1.3)this.drawTarget(targetX,targetY,Math.min(w*.25,h*.27,100),-1);
-        this.drawArrow(this.arrow.x-this.camera.x,this.arrow.y,this.arrow.angle,mix(1.5,1.25,progress),6);
-      }else if(name==="TARGET_HIT"){
-        const x=w*.56,y=h*.48,r=Math.min(w*.25,h*.27,100);
-        this.drawTarget(x,y,r,elapsed-3500);this.drawParticles(elapsed-3500,x,y);
-        if(elapsed<3580&&!this.reduced)this.pixel(0,0,w,h,this.palette.cream,.22*(1-(elapsed-3500)/80));
-        if(elapsed>4200)this.pixel(0,0,w,h,this.palette.ink,clamp((elapsed-4200)/300)*.8);
+      const {name,progress}=this.state,c=this.context,w=this.width,h=this.height;
+      this.canvas.dataset.state=name;this.view.dataset.state=name;
+      this.canvas.dataset.renderMode=elapsed<4000&&!this.reduced?"cinematic":"pixel-portal";
+      c.setTransform(this.dpr,0,0,this.dpr,0,0);c.globalAlpha=1;c.imageSmoothingEnabled=true;c.clearRect(0,0,w,h);
+      if(this.reduced) {
+        c.fillStyle=this.palette.ink;c.fillRect(0,0,w,h);this.drawTitle(elapsed);
+        document.body.style.setProperty("--intro-crt",".14");
+        if(progress>0)this.transitionToRegistration(progress);
+      }else {
+        this.updateCamera(elapsed);c.save();c.translate(this.camera.shakeX,this.camera.shakeY);
+        this.drawArena(elapsed);this.drawTarget(elapsed);this.drawArcher(elapsed);this.drawFlight(elapsed);this.drawImpact(elapsed);
+        if(elapsed<600){c.fillStyle=`rgba(0,0,0,${1-smooth(elapsed/600)})`;c.fillRect(0,0,w,h);}
+        c.restore();
+        const conversion=name==="TARGET_PIXEL_TRANSFORM"?progress:name==="PIXEL_CLASH_TRANSITION"?1:0;
+        document.body.style.setProperty("--intro-crt",String(.14*conversion));
+        if(conversion>0)this.drawTransformation(conversion);
+        else this.canvas.dataset.pixelCoverage="0";
+        if(elapsed>=4650)this.drawTitle(elapsed);
+        if(name==="PIXEL_CLASH_TRANSITION")this.transitionToRegistration(clamp((elapsed-4850)/150));
       }
-      c.restore();
-      if(name==="TITLE_REVEAL"||name==="PAGE_TRANSITION")this.drawTitle(elapsed);
-      if(name==="PAGE_TRANSITION")this.transitionToRegistration(progress);
-      const captions={INTRO_DARK:"",ARCHER_DRAW:"숨을 고르고, 목표를 겨냥합니다",FULL_TENSION:"",ARROW_RELEASE:"",ARROW_FOLLOW:"",TARGET_HIT:"한 발의 집중, 대결의 시작",TITLE_REVEAL:"운명의 대결을 시작하세요"};
-      if(name!=="PAGE_TRANSITION"&&this.caption.textContent!==captions[name])this.caption.textContent=captions[name]||"";
+      const captions={TARGET_PIXEL_TRANSFORM:"정확한 한 발, 새로운 세계",PIXEL_CLASH_TRANSITION:"운명의 대결을 시작하세요"};
+      if(!this.revealed)this.caption.textContent=captions[name]||"";
     }
-
     finish(reason="complete") {
       if(!this.running)return;
       this.running=false;cancelAnimationFrame(this.frameId);this.frameId=0;clearTimeout(this.assetTimer);
-      this.controller.abort();
-      this.canvas.dataset.running="false";this.canvas.dataset.state="COMPLETE";
-      this.view.hidden=true;
+      this.controller.abort();this.assets.length=0;
+      this.canvas.dataset.running="false";this.canvas.dataset.state="REGISTRATION";this.view.hidden=true;
+      this.canvas.width=this.canvas.height=1;this.pixelWorld.width=this.pixelWorld.height=1;
+      this.archer=this.arena=this.target=this.arrowImage=this.gameArena=null;
       document.documentElement.classList.remove("intro-pending");document.body.classList.remove("intro-playing");
-      if(IntroAnimation.active===this)IntroAnimation.active=null;
+      document.body.style.removeProperty("--intro-crt");
+      if(CinematicIntroAnimation.active===this)CinematicIntroAnimation.active=null;
       this.onComplete(reason);
     }
   }
-
-  window.IntroAnimation=IntroAnimation;
-  if(IntroAnimation.shouldPlay())document.documentElement.classList.add("intro-pending");
+  window.CinematicIntroAnimation=CinematicIntroAnimation;
+  // Retain the app's bootstrap contract, not the old cutscene implementation.
+  window.IntroAnimation=CinematicIntroAnimation;
+  if(CinematicIntroAnimation.shouldPlay())document.documentElement.classList.add("intro-pending");
 })();

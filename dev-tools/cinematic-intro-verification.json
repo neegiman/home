@@ -1,0 +1,43 @@
+{
+  "date": "2026-10-05",
+  "opening": "cinematic-v3",
+  "runtimeMilliseconds": 5024,
+  "distinctPhotographicPoses": 9,
+  "meanDrawMilliseconds": 0.71,
+  "maxDrawMilliseconds": 22.8,
+  "browserViewports": [
+    "1440x900",
+    "390x844"
+  ],
+  "scenes": [
+    "INTRO_DARK",
+    "ARCHER_REAR_VIEW",
+    "BOW_DRAW",
+    "ARROW_RELEASE",
+    "TARGET_HIT",
+    "TARGET_PIXEL_TRANSFORM",
+    "PIXEL_CLASH_TRANSITION"
+  ],
+  "passed": [
+    "photographic assets before hit",
+    "shared target/bullseye anchor",
+    "center-out target-first pixel conversion",
+    "separate high-res cinematic and low-res game canvases",
+    "first visit only",
+    "reload bypass including preview URL",
+    "tournament URL bypass",
+    "share URL bypass",
+    "top-right skip button click",
+    "RAF stopped after finish and skip",
+    "event handlers aborted",
+    "canvas memory released",
+    "registration interactive after finish",
+    "CRT restored",
+    "reduced motion 596ms logo",
+    "root/dist byte parity",
+    "224 registration assignment regression",
+    "192 participant animation frame regression"
+  ],
+  "assetGeneration": "Built-in image generation; local WebP packaging only; no video-generation model or external asset CDN.",
+  "browserErrors": 0
+}

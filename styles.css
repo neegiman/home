@@ -73,14 +73,17 @@ button { color: inherit; }
 
 .registration-view { width: min(1060px, calc(100% - 32px)); margin: auto; padding: 54px 0 80px; }
 
-/* Opening shares the existing CRT overlay, palette, borders and local pixel sprites. */
+/* Photographic opening: CRT joins only as the target opens the pixel world. */
 .intro-pending #registrationView { visibility: hidden; }
 .intro-playing { overflow: hidden; }
 .intro-playing .toast { visibility: hidden; }
+.intro-playing .crt { opacity: var(--intro-crt, 0); }
 .intro-view { position: fixed; inset: 0; z-index: 900; overflow: hidden; isolation: isolate; }
-#introAnimation { display: block; width: 100%; height: 100%; image-rendering: crisp-edges; image-rendering: pixelated; }
+#introAnimation { display: block; width: 100%; height: 100%; image-rendering: auto; }
 .intro-caption { position: absolute; bottom: max(7%, env(safe-area-inset-bottom)); left: 20px; right: 20px; margin: 0; color: var(--cream); text-align: center; font-size: clamp(12px, 1.25vw, 17px); font-weight: 700; letter-spacing: .08em; text-shadow: 2px 2px var(--ink); pointer-events: none; }
-.intro-view .skip-btn { z-index: 2; top: max(18px, env(safe-area-inset-top)); right: max(18px, env(safe-area-inset-right)); min-height: 44px; border: 2px solid var(--line); color: var(--cream); background: var(--navy); box-shadow: var(--pixel-shadow); }
+.intro-view .skip-btn { z-index: 2; top: max(18px, env(safe-area-inset-top)); right: max(18px, env(safe-area-inset-right)); min-height: 44px; border: 1px solid rgba(224,232,243,.35); color: #f1eee5; background: rgba(6,12,21,.72); box-shadow: none; }
+.intro-view[data-state="TARGET_PIXEL_TRANSFORM"] .skip-btn,
+.intro-view[data-state="PIXEL_CLASH_TRANSITION"] .skip-btn { border: 2px solid var(--line); color: var(--cream); background: var(--navy); box-shadow: var(--pixel-shadow); }
 .intro-view .skip-btn:focus-visible { outline: 2px solid var(--gold); outline-offset: 4px; }
 .intro-sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
 

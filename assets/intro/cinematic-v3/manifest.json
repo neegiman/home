@@ -1,0 +1,54 @@
+{
+  "cell": 448,
+  "columns": 3,
+  "rows": 3,
+  "margin": 15,
+  "style": "photographic rear-view adult female archer",
+  "anchor": {
+    "x": 0.6361607142857143,
+    "y": 0.9598214285714286
+  },
+  "mirrorForDownrange": true,
+  "frames": [
+    {
+      "name": "rear-idle",
+      "index": 0
+    },
+    {
+      "name": "rear-breeze",
+      "index": 1
+    },
+    {
+      "name": "raise-bow",
+      "index": 2
+    },
+    {
+      "name": "draw-01",
+      "index": 3
+    },
+    {
+      "name": "draw-02",
+      "index": 4
+    },
+    {
+      "name": "full-tension",
+      "index": 5
+    },
+    {
+      "name": "release-01",
+      "index": 6
+    },
+    {
+      "name": "release-02",
+      "index": 7
+    },
+    {
+      "name": "follow-through",
+      "index": 8
+    }
+  ],
+  "targetAnchor": {
+    "x": 0.5,
+    "y": 0.5
+  }
+}
