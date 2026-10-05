@@ -27,7 +27,9 @@ function inspect(buffer){
         const duration=v?Number(buffer.readBigUInt64BE(p+24)):buffer.readUInt32BE(p+16);
         data.duration=duration/scale;
       }
-      if(a.type==='stsd'&&buffer.toString('ascii',p+12,p+16)==='avc1')data.codec='H264';
+      if(a.type==='stsd'&&buffer.toString('ascii',p+12,p+16)==='avc1'){
+        data.codec='H264';data.width=buffer.readUInt16BE(p+40);data.height=buffer.readUInt16BE(p+42);
+      }
       if(a.type==='stsz')data.samples=buffer.readUInt32BE(p+8);
       if(CONTAINERS.has(a.type))walk(p,a.offset+a.size);
     }

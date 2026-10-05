@@ -1,0 +1,235 @@
+{
+  "profile": "mobile",
+  "duration": 10,
+  "fps": 30,
+  "frames": 300,
+  "resolution": [
+    1080,
+    1920
+  ],
+  "masterScene": "renders/master/pixel-clash-intro-master.blend",
+  "sharedSceneObjects": true,
+  "sceneCount": 1,
+  "sharedObjectSignature": "698e1525f2b0824b8b0e10a027f43826359f6da87bc0277623696d137ecd13b3",
+  "cameras": [
+    "Camera_Desktop",
+    "Camera_Arrow_Desktop",
+    "Camera_Target_Desktop",
+    "Camera_Mobile",
+    "Camera_Arrow_Mobile",
+    "Camera_Target_Mobile"
+  ],
+  "activeCameras": [
+    "Camera_Mobile",
+    "Camera_Arrow_Mobile",
+    "Camera_Target_Mobile"
+  ],
+  "cameraCuts": [
+    1,
+    156,
+    196
+  ],
+  "impactFrame": 196,
+  "transformStartFrame": 221,
+  "transformCompleteFrame": 287,
+  "bullseyeScreen": [
+    0.5,
+    0.5
+  ],
+  "originalMeshes": true,
+  "jointAnimation": true,
+  "flexingBow": true,
+  "hairShapeKeys": 26,
+  "audio": false,
+  "safeAreaSamples": [
+    {
+      "frame": 45,
+      "camera": "Camera_Mobile",
+      "points": {
+        "target": [
+          0.46999,
+          0.37886
+        ],
+        "arrow": [
+          0.36483,
+          0.62384
+        ],
+        "head": [
+          0.5,
+          0.56571
+        ],
+        "hairLeft": [
+          0.39786,
+          0.81248
+        ],
+        "hairRight": [
+          0.60214,
+          0.81248
+        ],
+        "bowTop": [
+          0.34921,
+          0.48265
+        ],
+        "bowBottom": [
+          0.3549,
+          0.81787
+        ],
+        "drawHand": [
+          0.351,
+          0.65607
+        ],
+        "drawElbow": [
+          0.78734,
+          0.73636
+        ],
+        "hairTip": [
+          0.55218,
+          0.87905
+        ]
+      }
+    },
+    {
+      "frame": 115,
+      "camera": "Camera_Mobile",
+      "points": {
+        "target": [
+          0.46898,
+          0.37466
+        ],
+        "arrow": [
+          0.33649,
+          0.67407
+        ],
+        "head": [
+          0.5,
+          0.572
+        ],
+        "hairLeft": [
+          0.38812,
+          0.84244
+        ],
+        "hairRight": [
+          0.61188,
+          0.84244
+        ],
+        "bowTop": [
+          0.33667,
+          0.48132
+        ],
+        "bowBottom": [
+          0.34318,
+          0.84363
+        ],
+        "drawHand": [
+          0.31631,
+          0.71968
+        ],
+        "drawElbow": [
+          0.81474,
+          0.75907
+        ],
+        "hairTip": [
+          0.55725,
+          0.91602
+        ]
+      }
+    },
+    {
+      "frame": 145,
+      "camera": "Camera_Mobile",
+      "points": {
+        "target": [
+          0.46889,
+          0.37428
+        ],
+        "arrow": [
+          0.39845,
+          0.52556
+        ],
+        "head": [
+          0.5,
+          0.57259
+        ],
+        "hairLeft": [
+          0.3872,
+          0.84527
+        ],
+        "hairRight": [
+          0.6128,
+          0.84527
+        ],
+        "bowTop": [
+          0.3355,
+          0.4812
+        ],
+        "bowBottom": [
+          0.34209,
+          0.84603
+        ],
+        "drawHand": [
+          0.33886,
+          0.66735
+        ],
+        "drawElbow": [
+          0.81733,
+          0.76121
+        ],
+        "hairTip": [
+          0.55772,
+          0.91951
+        ]
+      }
+    },
+    {
+      "frame": 176,
+      "camera": "Camera_Arrow_Mobile",
+      "points": {
+        "target": [
+          0.55777,
+          0.42171
+        ],
+        "arrow": [
+          0.50341,
+          0.54852
+        ]
+      }
+    },
+    {
+      "frame": 210,
+      "camera": "Camera_Target_Mobile",
+      "points": {
+        "target": [
+          0.5,
+          0.5
+        ],
+        "arrow": [
+          0.5,
+          0.50507
+        ],
+        "rimLeft": [
+          0.21111,
+          0.5
+        ],
+        "rimRight": [
+          0.78889,
+          0.5
+        ],
+        "rimTop": [
+          0.5,
+          0.33693
+        ],
+        "rimBottom": [
+          0.5,
+          0.66172
+        ]
+      }
+    }
+  ],
+  "pixelReveal": "target-first, center-out; portrait vertical expansion",
+  "pixelTargetRadius": 41.7471,
+  "pixelArrowTail": [
+    0.0,
+    -2.6636
+  ],
+  "pixelQuads": 36864
+}

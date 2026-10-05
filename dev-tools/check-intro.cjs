@@ -29,17 +29,58 @@ for(const [time,name]of timeline)assert.equal(Intro.prototype.stateAt.call({redu
 assert.equal(Intro.prototype.stateAt.call({reduced:true},600).progress,1);
 assert.ok(!code.includes('CinematicPoseRenderer'));assert.ok(code.includes('video.currentTime * 1000'));
 assert.ok(code.includes('this.video.removeAttribute("src")'));assert.ok(code.includes('this.controller.abort()'));
+function select(width,height,dpr=1,connection={},reducedData=false){return Intro.selectMovie({width,height,dpr,portrait:height>width,connection,reducedData});}
+assert.equal(select(1920,1080).quality,'desktop');
+assert.equal(select(390,844,3).quality,'mobile');
+assert.equal(select(390,844).quality,'mobile-lite');
+assert.equal(select(390,844,3,{saveData:true}).quality,'mobile-lite');
+assert.equal(select(390,844,3,{effectiveType:'slow-2g'}).quality,'mobile-lite');
+assert.equal(select(390,844,3,{},true).quality,'mobile-lite');
+assert.equal(select(844,390,3).quality,'desktop');
+assert.ok(code.includes('this.ready?String')); // poster remains visible before playback
+sandbox.innerWidth=390;sandbox.innerHeight=844;sandbox.devicePixelRatio=3;
+const resized={profile:'mobile',canvas:{},context:{setTransform(){}},view:{dataset:{}},draw(){}};
+Intro.prototype.resize.call(resized);assert.equal(resized.view.dataset.fit,'cover');
+sandbox.innerWidth=844;sandbox.innerHeight=390;
+Intro.prototype.resize.call(resized);assert.equal(resized.view.dataset.fit,'contain');assert.equal(resized.profile,'mobile');
+sandbox.innerWidth=768;sandbox.innerHeight=1024;
+Intro.prototype.resize.call(resized);assert.equal(resized.view.dataset.fit,'contain');
+sandbox.innerWidth=1920;sandbox.innerHeight=1080;resized.profile='desktop';
+Intro.prototype.resize.call(resized);assert.equal(resized.view.dataset.fit,'cover');
 const files=['index.html','styles.css','app.js','intro.js'];
 const movies=[];
-for(const profile of ['desktop','mobile']){
-  const file=`assets/intro/3d-v1/opening-${profile}.mp4`;
+let signature;
+const logicOnly=process.argv.includes('--logic-only');
+for(const profile of logicOnly?[]:['desktop','mobile','mobile-lite']){
+  const file=`assets/video/pixel-clash-intro-${profile}.mp4`;
   const movie=inspect(fs.readFileSync(path.join(root,file)));
   assert.equal(movie.codec,'H264');assert.equal(movie.samples,300);assert.equal(movie.duration,10);assert.ok(movie.fastStart);
   assert.ok(movie.sizeBytes<24*1024*1024);
-  const meta=JSON.parse(fs.readFileSync(path.join(root,`assets/intro/3d-v1/metadata-${profile}.json`),'utf8'));
+  const meta=JSON.parse(fs.readFileSync(path.join(root,`assets/video/metadata-${profile}.json`),'utf8'));
   assert.ok(meta.jointAnimation&&meta.flexingBow);assert.deepEqual(meta.bullseyeScreen,[.5,.5]);
-  files.push(file,`assets/intro/3d-v1/poster-${profile}.webp`,`assets/intro/3d-v1/metadata-${profile}.json`);
+  assert.equal(meta.sceneCount,1);assert.equal(meta.cameras.length,6);assert.ok(meta.sharedSceneObjects);
+  assert.equal(signature||meta.sharedObjectSignature,meta.sharedObjectSignature);signature=meta.sharedObjectSignature;
+  assert.deepEqual([movie.width,movie.height],meta.resolution);
+  if(profile!=='desktop'){
+    for(const sample of meta.safeAreaSamples){
+      for(const [name,[x,y]] of Object.entries(sample.points)){
+        assert.ok(x>=.15&&x<=.85,`${profile} ${sample.frame} ${name} horizontal safe area`);
+        assert.ok(y>=.10&&y<=.92,`${profile} ${sample.frame} ${name} vertical safe area`);
+      }
+      if(sample.frame<156)assert.ok(sample.points.target[1]<sample.points.head[1]);
+    }
+    // Phone cover crops: translate camera-space points to actual screen-space.
+    for(const [w,h]of [[320,568],[390,844],[360,800],[430,932]]){
+      const scale=Math.max(w/1080,h/1920),ox=(w-1080*scale)/2,oy=(h-1920*scale)/2;
+      for(const sample of meta.safeAreaSamples)for(const [name,[x,y]]of Object.entries(sample.points)){
+        const px=ox+x*1080*scale,py=oy+y*1920*scale;
+        assert.ok(px>=0&&px<=w&&py>=0&&py<=h,`cover ${w}x${h}: ${name}`);
+      }
+    }
+  }
+  files.push(file,`assets/video/metadata-${profile}.json`);
   movies.push({profile,...movie,resolution:meta.resolution});
 }
+files.push('assets/video/pixel-clash-intro-poster.webp','assets/video/pixel-clash-intro-poster-mobile.webp');
 for(const file of files)assert.ok(fs.readFileSync(path.join(root,file)).equals(fs.readFileSync(path.join(root,'dist',file))),`Root/dist parity: ${file}`);
-console.log(JSON.stringify({pass:true,movies,directLinksSkip:true,persistentFirstVisit:true,reloadSkips:true,reducedMotion:true,videoClock:true,distParity:true},null,2));
+console.log(JSON.stringify({pass:true,logicOnly,movies,directLinksSkip:true,persistentFirstVisit:true,reloadSkips:true,reducedMotion:true,rotationKeepsProfile:true,videoClock:true,distParity:true},null,2));

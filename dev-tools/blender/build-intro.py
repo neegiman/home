@@ -1,12 +1,13 @@
 """Original procedural 3D archery cutscene; no downloaded character/IP assets.
 
 Run with Blender --background --factory-startup --python this_file --
-  --profile desktop|mobile --preview | --render
+  --profile desktop|mobile|mobile-lite|all --preview | --render
 Meshes, articulated limbs, bow deformation, hair shape keys and camera tracks
 are baked into an editable .blend. The website plays the encoded local movie.
 """
 import argparse
 import json
+import hashlib
 import math
 import random
 import sys
@@ -17,17 +18,20 @@ from mathutils import Vector
 from bpy_extras.object_utils import world_to_camera_view
 
 ROOT = Path(__file__).resolve().parents[2]
-OUT = ROOT / 'output' / 'intro-3d'
-ASSETS = ROOT / 'assets' / 'intro' / '3d-v1'
+OUT = ROOT / 'renders'
+ASSETS = ROOT / 'assets' / 'video'
+PROFILES = {'desktop': (1920, 1080), 'mobile': (1080, 1920), 'mobile-lite': (720, 1280)}
 FPS, FRAMES = 30, 300
 random.seed(4127)
 args = argparse.ArgumentParser()
-args.add_argument('--profile', choices=['desktop', 'mobile'], default='desktop')
+args.add_argument('--profile', choices=[*PROFILES, 'all'], default='desktop')
 args.add_argument('--preview', action='store_true')
 args.add_argument('--render', action='store_true')
 args.add_argument('--test-frame', type=int)
 args = args.parse_args(sys.argv[sys.argv.index('--') + 1:] if '--' in sys.argv else [])
 OUT.mkdir(parents=True, exist_ok=True)
+(OUT / 'master').mkdir(exist_ok=True)
+(OUT / 'previews').mkdir(exist_ok=True)
 ASSETS.mkdir(parents=True, exist_ok=True)
 scene = bpy.context.scene
 bpy.ops.object.select_all(action='SELECT')
@@ -37,7 +41,7 @@ scene.eevee.taa_render_samples = 32
 scene.eevee.use_raytracing = False
 scene.eevee.shadow_ray_count = 2
 scene.eevee.volumetric_samples = 24
-scene.render.resolution_x, scene.render.resolution_y = ((1280, 720) if args.profile == 'desktop' else (576, 1024))
+scene.render.resolution_x, scene.render.resolution_y = PROFILES['desktop']
 scene.render.resolution_percentage = 100
 scene.render.fps = FPS
 scene.frame_start, scene.frame_end = 1, FRAMES
@@ -464,195 +468,281 @@ for f,e in [(1,0),(195,0),(196,160),(198,50),(201,0),(300,0)]:
     flash.data.energy=e
     flash.data.keyframe_insert(data_path='energy',frame=f)
 
-# Three real cameras: rear push-in, arrow travel, then locked target close-up.
-focuses, cameras = [], []
-for name in ['Rear archer camera','Arrow tracking camera','Locked bullseye camera']:
-    data=bpy.data.cameras.new(name)
-    cam=bpy.data.objects.new(name,data)
-    scene.collection.objects.link(cam)
-    focus=bpy.data.objects.new(name+' focus',None)
-    scene.collection.objects.link(focus)
-    data.dof.use_dof=True
-    data.dof.focus_object=focus
-    data.dof.aperture_fstop=3.8 if 'Rear' in name else 5.6
-    data.lens=48
-    data.sensor_fit='HORIZONTAL' if args.profile=='desktop' else 'VERTICAL'
-    cameras.append(cam)
-    focuses.append(focus)
-for frame in range(1,FRAMES+1):
-    t=smooth((frame-1)/134)
-    cam=cameras[0]
-    cam.location=Vector((-1.06,-3.4,1.77)).lerp(Vector((-.75,-2.45,1.73)),t)
-    look=Vector((-.12,.78,1.48))
-    if args.profile=='mobile':
-        cam.location=Vector((-.55,-4.2,1.85)).lerp(Vector((-.45,-3.55,1.82)),t)
-        look=Vector((-.48,1.0,1.48)).lerp(Vector((-.414,1.0,1.50)),t)
-    cam.rotation_euler=(look-cam.location).to_track_quat('-Z','Y').to_euler()
-    cam.data.lens=46+5*t if args.profile=='desktop' else 34+2*t
-    focuses[0].location=(0,.16,1.48)
-    p=arrow_position(frame)
-    cameras[1].location=(1.0,p.y-1.8,1.63)
-    flight_focus=p+Vector((0,.6,0))
-    cameras[1].rotation_euler=(flight_focus-cameras[1].location).to_track_quat('-Z','Y').to_euler()
-    cameras[1].data.lens=43 if args.profile=='desktop' else 34
-    focuses[1].location=flight_focus
-    cameras[2].location=(-.62,13.3,2.01)
-    cameras[2].rotation_euler=(TARGET-cameras[2].location).to_track_quat('-Z','Y').to_euler()
-    cameras[2].data.lens=57 if args.profile=='desktop' else 40
-    focuses[2].location=TARGET
-    if 196<frame<204:
-        cameras[2].location.x += .009*math.sin((frame-196)*2.4)
-        cameras[2].location.z += .007*math.cos((frame-196)*2.2)
-    for cam,focus in zip(cameras,focuses):
-        cam.keyframe_insert(data_path='location',frame=frame)
-        cam.keyframe_insert(data_path='rotation_euler',frame=frame)
-        cam.data.keyframe_insert(data_path='lens',frame=frame)
-        focus.keyframe_insert(data_path='location',frame=frame)
-for name,frame,cam in [('REAR / DRAW / RELEASE',1,cameras[0]),('ARROW FOLLOW',156,cameras[1]),('BULLSEYE / PIXEL PORTAL',196,cameras[2])]:
-    marker=scene.timeline_markers.new(name,frame=frame)
-    marker.camera=cam
-scene.camera=cameras[0]
+# One scene and one animated cast. Six cameras coexist in the editable master.
+camera_collection = bpy.data.collections.new('CAMERAS')
+scene.collection.children.link(camera_collection)
+camera_sets, focus_sets, portal_sets, portal_metadata = {}, {}, {}, {}
+for profile in ['desktop', 'mobile']:
+    names = (['Camera_Desktop', 'Camera_Arrow_Desktop', 'Camera_Target_Desktop']
+             if profile == 'desktop' else ['Camera_Mobile', 'Camera_Arrow_Mobile', 'Camera_Target_Mobile'])
+    camera_sets[profile], focus_sets[profile] = [], []
+    for i, name in enumerate(names):
+        data = bpy.data.cameras.new(name)
+        cam = bpy.data.objects.new(name, data)
+        camera_collection.objects.link(cam)
+        focus = bpy.data.objects.new(name + '_Focus', None)
+        camera_collection.objects.link(focus)
+        data.dof.use_dof = True
+        data.dof.focus_object = focus
+        data.dof.aperture_fstop = 4.5 if i == 0 else 5.6
+        data.sensor_fit = 'HORIZONTAL' if profile == 'desktop' else 'VERTICAL'
+        camera_sets[profile].append(cam)
+        focus_sets[profile].append(focus)
+    cameras, focuses = camera_sets[profile], focus_sets[profile]
+    for frame in range(1, FRAMES + 1):
+        t = smooth((frame - 1) / 134)
+        if profile == 'desktop':
+            cameras[0].location = Vector((-1.06, -3.8, 1.80)).lerp(Vector((-.90, -3.20, 1.78)), t)
+            look = Vector((-.12, .78, 1.48))
+            cameras[0].data.lens = 43 + 2*t
+        else:
+            # Elevated rear view: distant target above head, bow/shoulders below.
+            # Framing is camera-only; no character or target position is changed.
+            cameras[0].location = Vector((0, -3.75, 2.65)).lerp(Vector((0, -3.40, 2.60)), t)
+            look = Vector((0, 3.0, 1.66))
+            cameras[0].data.lens = 31 + t
+        cameras[0].rotation_euler = (look - cameras[0].location).to_track_quat('-Z', 'Y').to_euler()
+        focuses[0].location = (0, .16, 1.48)
+        p = arrow_position(frame)
+        if profile == 'desktop':
+            cameras[1].location = (1.0, p.y - 1.8, 1.63)
+            flight_focus = p + Vector((0, .6, 0))
+            cameras[1].data.lens = 43
+        else:
+            # Chase along the depth axis, not a horizontal screen crossing.
+            cameras[1].location = p + Vector((.075, -1.8, .34))
+            flight_focus = p + Vector((0, .35, .10))
+            cameras[1].data.lens = 30
+        cameras[1].rotation_euler = (flight_focus - cameras[1].location).to_track_quat('-Z', 'Y').to_euler()
+        focuses[1].location = p + Vector((0, .55, 0))
+        if profile == 'desktop':
+            cameras[2].location, cameras[2].data.lens = (-.62, 13.3, 2.01), 57
+        else:
+            # Full target diameter about 58% of the narrow 9:16 width.
+            # Its entire silhouette remains inside even a tall phone's cover crop.
+            cameras[2].location, cameras[2].data.lens = (-.28, 12.25, 1.70), 34
+        cameras[2].rotation_euler = (TARGET - cameras[2].location).to_track_quat('-Z', 'Y').to_euler()
+        focuses[2].location = TARGET
+        if 196 < frame < 204:
+            cameras[2].location.x += .009*math.sin((frame-196)*2.4)
+            cameras[2].location.z += .007*math.cos((frame-196)*2.2)
+        for cam, focus in zip(cameras, focuses):
+            cam.keyframe_insert(data_path='location', frame=frame)
+            cam.keyframe_insert(data_path='rotation_euler', frame=frame)
+            cam.data.keyframe_insert(data_path='lens', frame=frame)
+            focus.keyframe_insert(data_path='location', frame=frame)
 
-# Separate game artwork, not a whole-frame downsample of the 3D picture.
-# Each flat pixel quad has its own reveal threshold: target first, arena last.
-cols,rows = ((256,144) if args.profile=='desktop' else (144,256))
-cx,cy=cols*.5,rows*.5
-scene.frame_set(220)
-bpy.context.view_layer.update()
-screen_center=world_to_camera_view(scene,cameras[2],TARGET)
-screen_rim=world_to_camera_view(scene,cameras[2],TARGET+Vector((0,0,.66)))
-screen_tail=world_to_camera_view(scene,cameras[2],arrow_position(220))
-radius=(screen_rim.y-screen_center.y)*rows
-arrow_dx=(screen_tail.x-screen_center.x)*cols
-arrow_dy=(screen_tail.y-screen_center.y)*rows
-arrow_length=math.hypot(arrow_dx,arrow_dy)
-palette=[(8,10,24),(13,18,48),(18,24,59),(23,31,75),(51,66,122),(255,245,207),(255,216,77),(255,73,108),(72,199,255),(38,88,217),(97,57,35),(148,92,47)]
-def rgb(index):
-    return tuple((x/255)**2.2 for x in palette[index])+(1,)
-def pixel(x,y):
-    r=math.hypot(x-cx,y-cy)
-    color=1
-    if y<rows*.27:
-        color=0 if int(x/12+y/8)%2 else 2
-    elif y<rows*.39:
-        color=2 if int(x/9)%2 else 0  # audience silhouettes
+
+def select_profile(profile):
+    base = 'desktop' if profile == 'desktop' else 'mobile'
+    scene.render.resolution_x, scene.render.resolution_y = PROFILES[profile]
+    cameras = camera_sets[base]
+    scene.timeline_markers.clear()
+    for name, frame, cam in [('REAR / DRAW / RELEASE', 1, cameras[0]),
+                             ('ARROW FOLLOW', 156, cameras[1]), ('BULLSEYE / PIXEL PORTAL', 196, cameras[2])]:
+        marker = scene.timeline_markers.new(name, frame=frame)
+        marker.camera = cam
+    scene.camera = cameras[0]
+    for name, collection in portal_sets.items():
+        collection.hide_render = name != base
+        collection.hide_viewport = name != base
+    scene['render_profile'] = profile
+
+
+palette = [(8,10,24),(13,18,48),(18,24,59),(23,31,75),(51,66,122),(255,245,207),
+           (255,216,77),(255,73,108),(72,199,255),(38,88,217),(97,57,35),(148,92,47)]
+
+
+def build_pixel_portal(profile):
+    select_profile(profile)
+    cols, rows = (256,144) if profile == 'desktop' else (144,256)
+    cx, cy = cols*.5, rows*.5
+    scene.frame_set(220)
+    bpy.context.view_layer.update()
+    cam = camera_sets[profile][2]
+    center = world_to_camera_view(scene, cam, TARGET)
+    rim = world_to_camera_view(scene, cam, TARGET + Vector((0,0,.66)))
+    tail = world_to_camera_view(scene, cam, arrow_position(220))
+    radius = (rim.y-center.y)*rows
+    arrow_dx, arrow_dy = (tail.x-center.x)*cols, (tail.y-center.y)*rows
+    arrow_length = max(.001, math.hypot(arrow_dx, arrow_dy))
+    aspect = scene.render.resolution_x / scene.render.resolution_y
+    if profile == 'desktop':
+        width = cam.data.sensor_width / cam.data.lens
+        height = width / aspect
     else:
-        color=2 if int(x/22+y/10)%2 else 1
-        if int(x)%22<1 and y>rows*.65: color=4
-        if (int(x*13+y*37)%809)==0: color=6
-    if abs(x-cx)<radius*.65 and rows*.08<y<cy-radius:
-        if abs(abs(x-cx)-radius*.42)<2: color=10
-    if r<radius+3:
-        color=11
-        if r<radius: color=5
-        if r<radius*.80: color=0
-        if r<radius*.60: color=9
-        if r<radius*.40: color=7
-        if r<radius*.20: color=6
-        if abs(r-radius*.81)<.9 or abs(r-radius*.41)<.7: color=4
-    # Pixel arrow stuck in the bullseye, on the same anchor as the 3D arrow.
-    dx,dy=x-cx,y-cy
-    along=(dx*arrow_dx+dy*arrow_dy)/(arrow_length*arrow_length)
-    across=(dx*arrow_dy-dy*arrow_dx)/arrow_length
-    if 0<=along<=1 and abs(across)<.65: color=5
-    if .70<along<1.13 and abs(across)<1.65: color=8 if across>0 else 7
-    return color,r
-verts,faces,colors,thresholds=[],[],[],[]
-distance=1
-cam=cameras[2]
-aspect=scene.render.resolution_x/scene.render.resolution_y
-if args.profile=='desktop':
-    width=cam.data.sensor_width/cam.data.lens*distance
-    height=width/aspect
-else:
-    height=cam.data.sensor_height/cam.data.lens*distance
-    width=height*aspect
-far=math.hypot(cols/2,rows/2)
-for y in range(rows):
-    for x in range(cols):
-        index=len(verts)
-        color,r=pixel(x+.5,y+.5)
-        threshold=(r/(radius+4)*.43) if r<=radius+4 else (.43+(r-radius-4)/(far-radius-4)*.55)
-        threshold+=.009*math.sin(x*18.41+y*7.33)
-        threshold=max(.002,min(.98,threshold))
-        for dx,dy in [(0,0),(1,0),(1,1),(0,1)]:
-            verts.append((((x+dx)/cols-.5)*width,((y+dy)/rows-.5)*height,-distance))
-            colors.append(rgb(color))
-            thresholds.append(threshold)
-        faces.append((index,index+1,index+2,index+3))
-portal_mat=bpy.data.materials.new('Center-out pixel world reveal, one threshold per tile')
-portal_mat.use_nodes=True
-portal_mat.surface_render_method='DITHERED'
-nodes,links=portal_mat.node_tree.nodes,portal_mat.node_tree.links
-nodes.clear()
-output=nodes.new('ShaderNodeOutputMaterial')
-colorattr=nodes.new('ShaderNodeAttribute');colorattr.attribute_name='PixelColor'
-threshold=nodes.new('ShaderNodeAttribute');threshold.attribute_name='RevealAt'
-progress=nodes.new('ShaderNodeValue');progress.name='Portal expansion'
-greater=nodes.new('ShaderNodeMath');greater.operation='GREATER_THAN'
-links.new(progress.outputs[0],greater.inputs[0]);links.new(threshold.outputs['Fac'],greater.inputs[1])
-emission=nodes.new('ShaderNodeEmission');emission.inputs['Strength'].default_value=.8
-links.new(colorattr.outputs['Color'],emission.inputs['Color'])
-transparent=nodes.new('ShaderNodeBsdfTransparent')
-mix=nodes.new('ShaderNodeMixShader')
-links.new(greater.outputs[0],mix.inputs[0]);links.new(transparent.outputs[0],mix.inputs[1]);links.new(emission.outputs[0],mix.inputs[2]);links.new(mix.outputs[0],output.inputs['Surface'])
-portal=mesh('Hand-authored pixel game arena portal',verts,faces,portal_mat,False)
-portal.parent=cam
-attr=portal.data.color_attributes.new(name='PixelColor',type='FLOAT_COLOR',domain='POINT')
-attr.data.foreach_set('color',[v for color in colors for v in color])
-attr=portal.data.attributes.new(name='RevealAt',type='FLOAT',domain='POINT')
-attr.data.foreach_set('value',thresholds)
-for frame,value in [(1,-1),(220,-1),(221,0),(232,.08),(245,.29),(262,.52),(280,.84),(287,1),(300,1)]:
-    progress.outputs[0].default_value=value
-    progress.outputs[0].keyframe_insert(data_path='default_value',frame=frame)
-for frame,value in [(1,True),(220,True),(221,False),(300,False)]:
-    keyed(portal,'hide_render',value,frame)
-# Prevent DOF from blurring the flat pixel art as it replaces the scene.
-for frame,value in [(1,True),(219,True),(220,False),(300,False)]:
-    cam.data.dof.use_dof=value
-    cam.data.dof.keyframe_insert(data_path='use_dof',frame=frame)
+        height = cam.data.sensor_height / cam.data.lens
+        width = height * aspect
+    vertices, faces, colors, thresholds = [], [], [], []
+    # Metric stretches sideways distance on portrait: after the target converts,
+    # the wave visibly opens upward/downward before it fills the outer corners.
+    def metric(dx, dy):
+        return math.hypot(dx*(1.50 if profile == 'mobile' else 1), dy)
+    far = metric(cols/2, rows/2)
+    for y in range(rows):
+        for x in range(cols):
+            dx, dy = x+.5-cx, y+.5-cy
+            r = math.hypot(dx, dy)
+            color = 1
+            if y < rows*.27:
+                color = 0 if int(x/12+y/8)%2 else 2
+            elif y < rows*.39:
+                color = 2 if int(x/9)%2 else 0
+            else:
+                color = 2 if int(x/22+y/10)%2 else 1
+                if x%22 < 1 and y > rows*.65: color = 4
+                if (x*13+y*37)%809 == 0: color = 6
+            if abs(dx) < radius*.65 and rows*.08 < y < cy-radius and abs(abs(dx)-radius*.42) < 2:
+                color = 10
+            if r < radius+3:
+                color = 11
+                for fraction, index in [(1,5),(.80,0),(.60,9),(.40,7),(.20,6)]:
+                    if r < radius*fraction: color = index
+                if abs(r-radius*.81) < .9 or abs(r-radius*.41) < .7: color = 4
+            along = (dx*arrow_dx+dy*arrow_dy)/(arrow_length*arrow_length)
+            across = (dx*arrow_dy-dy*arrow_dx)/arrow_length
+            if 0 <= along <= 1 and abs(across) < .65: color = 5
+            if .70 < along < 1.13 and abs(across) < 1.65: color = 8 if across > 0 else 7
+            if r <= radius+4:
+                threshold = r/(radius+4)*.43
+            else:
+                angle_scale = metric(dx,dy)/max(r,.001)
+                threshold = .43+(r-radius-4)*angle_scale/(far-radius-4)*.55
+            threshold = max(.002, min(.98, threshold+.009*math.sin(x*18.41+y*7.33)))
+            index = len(vertices)
+            for ox, oy in [(0,0),(1,0),(1,1),(0,1)]:
+                vertices.append((((x+ox)/cols-.5)*width, ((y+oy)/rows-.5)*height, -1))
+                colors.append(tuple((v/255)**2.2 for v in palette[color])+(1,))
+                thresholds.append(threshold)
+            faces.append((index,index+1,index+2,index+3))
+    mat = bpy.data.materials.new('Pixel portal '+profile)
+    mat.use_nodes = True
+    mat.surface_render_method = 'DITHERED'
+    nodes, links = mat.node_tree.nodes, mat.node_tree.links
+    nodes.clear()
+    output = nodes.new('ShaderNodeOutputMaterial')
+    colorattr = nodes.new('ShaderNodeAttribute'); colorattr.attribute_name = 'PixelColor'
+    threshold = nodes.new('ShaderNodeAttribute'); threshold.attribute_name = 'RevealAt'
+    progress = nodes.new('ShaderNodeValue'); progress.name = 'Portal expansion'
+    greater = nodes.new('ShaderNodeMath'); greater.operation = 'GREATER_THAN'
+    links.new(progress.outputs[0], greater.inputs[0]); links.new(threshold.outputs['Fac'], greater.inputs[1])
+    emission = nodes.new('ShaderNodeEmission'); emission.inputs['Strength'].default_value = .8
+    links.new(colorattr.outputs['Color'], emission.inputs['Color'])
+    transparent = nodes.new('ShaderNodeBsdfTransparent')
+    mix = nodes.new('ShaderNodeMixShader')
+    links.new(greater.outputs[0], mix.inputs[0]); links.new(transparent.outputs[0], mix.inputs[1])
+    links.new(emission.outputs[0], mix.inputs[2]); links.new(mix.outputs[0], output.inputs['Surface'])
+    collection = bpy.data.collections.new('PIXEL_PORTAL_'+profile.upper())
+    scene.collection.children.link(collection)
+    portal = mesh('Camera-specific authored pixel portal '+profile, vertices, faces, mat, False)
+    scene.collection.objects.unlink(portal)
+    collection.objects.link(portal)
+    portal.parent = cam
+    portal_sets[profile] = collection
+    attr = portal.data.color_attributes.new(name='PixelColor', type='FLOAT_COLOR', domain='POINT')
+    attr.data.foreach_set('color', [v for color in colors for v in color])
+    attr = portal.data.attributes.new(name='RevealAt', type='FLOAT', domain='POINT')
+    attr.data.foreach_set('value', thresholds)
+    for frame, value in [(1,-1),(220,-1),(221,0),(232,.08),(245,.29),(262,.52),(280,.84),(287,1),(300,1)]:
+        progress.outputs[0].default_value = value
+        progress.outputs[0].keyframe_insert(data_path='default_value', frame=frame)
+    for frame, value in [(1,True),(220,True),(221,False),(300,False)]:
+        keyed(portal,'hide_render',value,frame)
+    for frame, value in [(1,True),(219,True),(220,False),(300,False)]:
+        cam.data.dof.use_dof = value
+        cam.data.dof.keyframe_insert(data_path='use_dof', frame=frame)
+    portal_metadata[profile] = {'pixelTargetRadius': round(radius,4),
+                               'pixelArrowTail': [round(arrow_dx,4),round(arrow_dy,4)], 'pixelQuads': cols*rows}
 
-if hasattr(scene.render.image_settings,'media_type'):
-    scene.render.image_settings.media_type='VIDEO'
-scene.render.image_settings.file_format='FFMPEG'
-scene.render.ffmpeg.format='MPEG4'
-scene.render.ffmpeg.codec='H264'
-scene.render.ffmpeg.constant_rate_factor='HIGH'
-scene.render.ffmpeg.ffmpeg_preset='GOOD'
-scene.render.ffmpeg.audio_codec='NONE'
-scene.render.filepath=str(ASSETS / ('opening-'+args.profile+'.mp4'))
-scene['cutscene']='Original 3D archery into the PIXEL CLASH world'
-scene['duration_seconds']=10
-scene['profile']=args.profile
-scene['palette']='Korean flag-inspired cream / charcoal / deep red / blue, gold accents'
-scene.frame_set(1)
-bpy.ops.wm.save_as_mainfile(filepath=str(OUT / ('opening-'+args.profile+'.blend')))
-scene.frame_set(220)
-anchor=world_to_camera_view(scene,cameras[2],TARGET)
-metadata={
-    'profile':args.profile,'duration':10,'fps':FPS,'frames':FRAMES,
-    'resolution':[scene.render.resolution_x,scene.render.resolution_y],
-    'impactFrame':196,'transformStartFrame':221,'transformCompleteFrame':287,
-    'bullseyeScreen':[round(anchor.x,5),round(1-anchor.y,5)],
-    'pixelTargetRadius':round(radius,4),'pixelArrowTail':[round(arrow_dx,4),round(arrow_dy,4)],
-    'originalMeshes':True,'jointAnimation':True,'flexingBow':True,'hairShapeKeys':26,
-    'pixelQuads':cols*rows,'pixelReveal':'target-first, center-out, separately authored game art',
-    'cameraCuts':[1,156,196], 'audio':False,
-}
-(OUT / ('metadata-'+args.profile+'.json')).write_text(json.dumps(metadata,indent=2),encoding='utf-8')
-if args.preview or args.test_frame:
-    if hasattr(scene.render.image_settings,'media_type'):
-        scene.render.image_settings.media_type='IMAGE'
-    scene.render.image_settings.file_format='PNG'
-    for frame in ([args.test_frame] if args.test_frame else [45,115,145,176,210,245,275,300]):
+
+build_pixel_portal('desktop')
+build_pixel_portal('mobile')
+shared_signature = hashlib.sha256('\n'.join(sorted(obj.name for obj in scene.objects
+    if obj.type != 'CAMERA' and not obj.name.startswith('Camera_') and 'pixel portal' not in obj.name)).encode()).hexdigest()
+
+
+def film_settings(profile):
+    if hasattr(scene.render.image_settings, 'media_type'):
+        scene.render.image_settings.media_type = 'VIDEO'
+    scene.render.image_settings.file_format = 'FFMPEG'
+    scene.render.ffmpeg.format = 'MPEG4'
+    scene.render.ffmpeg.codec = 'H264'
+    scene.render.ffmpeg.constant_rate_factor = 'HIGH' if profile != 'mobile-lite' else 'MEDIUM'
+    scene.render.ffmpeg.ffmpeg_preset = 'GOOD'
+    scene.render.ffmpeg.audio_codec = 'NONE'
+    scene.render.filepath = str(OUT / ('pixel-clash-intro-'+profile+'.mp4'))
+
+
+def projected(camera, point):
+    p = world_to_camera_view(scene, camera, Vector(point))
+    return [round(p.x,5), round(1-p.y,5)]
+
+
+def verification_metadata(profile):
+    base = 'desktop' if profile == 'desktop' else 'mobile'
+    cameras = camera_sets[base]
+    samples = []
+    for frame in [45,115,145,176,210]:
         scene.frame_set(frame)
-        scene.render.filepath=str(OUT / ('preview-'+args.profile+'-%03d.png'%frame))
-        bpy.ops.render.render(write_still=True)
-        print('PREVIEW_OK',args.profile,frame,flush=True)
-elif args.render:
-    scene.frame_set(1)
-    print('RENDER_START',args.profile,flush=True)
-    bpy.ops.render.render(animation=True)
-    print('RENDER_COMPLETE',args.profile,flush=True)
-else:
-    print('SCENE_READY',json.dumps(metadata),flush=True)
+        bpy.context.view_layer.update()
+        cam = cameras[0 if frame < 156 else 1 if frame < 196 else 2]
+        points = {'target': projected(cam,TARGET), 'arrow': projected(cam,arrow_position(frame)+Vector((0,.45,0)))}
+        if frame < 156:
+            points.update({'head': projected(cam,(0,0,1.91)), 'hairLeft': projected(cam,(-.16,-.2,1.25)),
+                           'hairRight': projected(cam,(.16,-.2,1.25)), 'bowTop': projected(cam,(-.28,.60,2.07)),
+                           'bowBottom': projected(cam,(-.28,.60,.91)), 'drawHand': projected(cam,(-.28,.60-.55*max(0,draw_amount(frame)),1.49)),
+                           'drawElbow': projected(cam,(.45,-.17,1.46)), 'hairTip': projected(cam,(.08,-.30,1.10))})
+        if frame == 210:
+            points.update({key:projected(cam,TARGET+Vector(offset)) for key,offset in
+                           [('rimLeft',(-.66,0,0)),('rimRight',(.66,0,0)),('rimTop',(0,0,.66)),('rimBottom',(0,0,-.66))]})
+        samples.append({'frame':frame,'camera':cam.name,'points':points})
+    scene.frame_set(220)
+    return {'profile':profile,'duration':10,'fps':FPS,'frames':FRAMES,'resolution':list(PROFILES[profile]),
+            'masterScene':'renders/master/pixel-clash-intro-master.blend','sharedSceneObjects':True,
+            'sceneCount':len(bpy.data.scenes),'sharedObjectSignature':shared_signature,
+            'cameras':[cam.name for cams in camera_sets.values() for cam in cams],
+            'activeCameras':[cam.name for cam in cameras], 'cameraCuts':[1,156,196],
+            'impactFrame':196,'transformStartFrame':221,'transformCompleteFrame':287,
+            'bullseyeScreen':projected(cameras[2],TARGET), 'originalMeshes':True,
+            'jointAnimation':True,'flexingBow':True,'hairShapeKeys':26,'audio':False,
+            'safeAreaSamples':samples, 'pixelReveal':'target-first, center-out; portrait vertical expansion',
+            **portal_metadata[base]}
+
+
+scene['cutscene'] = 'Original 3D archery into the PIXEL CLASH world'
+scene['duration_seconds'] = 10
+scene['palette'] = 'Korean flag-inspired cream / charcoal / deep red / blue, gold accents'
+scene['profile_resolutions'] = json.dumps(PROFILES)
+select_profile('desktop')
+film_settings('desktop')
+scene.frame_set(1)
+bpy.ops.wm.save_as_mainfile(filepath=str(OUT / 'master' / 'pixel-clash-intro-master.blend'))
+
+# Both full-resolution movies are rendered from this same scene in one invocation.
+# Lite uses the exact same mobile camera/animation, not a crop of the desktop.
+profiles = list(PROFILES) if args.profile == 'all' else [args.profile]
+for profile in profiles:
+    select_profile(profile)
+    metadata = verification_metadata(profile)
+    (ASSETS / ('metadata-'+profile+'.json')).write_text(json.dumps(metadata,indent=2),encoding='utf-8')
+    print('CAMERA_CHECK',json.dumps(metadata),flush=True)
+    if args.preview or args.test_frame:
+        if hasattr(scene.render.image_settings,'media_type'):
+            scene.render.image_settings.media_type = 'IMAGE'
+        scene.render.image_settings.file_format = 'PNG'
+        # Full-res master stays untouched; previews use 50% render scale.
+        scene.render.resolution_percentage = 50
+        for frame in ([args.test_frame] if args.test_frame else [45,115,145,176,210,245,300]):
+            scene.frame_set(frame)
+            scene.render.filepath = str(OUT / 'previews' / ('preview-'+profile+'-%03d.png'%frame))
+            bpy.ops.render.render(write_still=True)
+            print('PREVIEW_OK',profile,frame,flush=True)
+        scene.render.resolution_percentage = 100
+    elif args.render:
+        film_settings(profile)
+        scene.frame_set(1)
+        print('RENDER_START',profile,flush=True)
+        bpy.ops.render.render(animation=True)
+        print('RENDER_COMPLETE',profile,flush=True)
+    else:
+        print('SCENE_READY',profile,flush=True)

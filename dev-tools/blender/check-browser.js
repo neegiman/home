@@ -20,7 +20,9 @@
   await new Promise(resolve=>{const timer=setInterval(()=>{if(!intro.running){clearInterval(timer);resolve();}},40);});
   const sorted=deltas.sort((a,b)=>a-b);
   const result={
-    profile:intro.profile,totalMs:Math.round(performance.now()-began),completed,states:[...states],
+    profile:intro.profile,quality:intro.quality,totalMs:Math.round(performance.now()-began),completed,states:[...states],
+    muted:video.muted,playsInline:video.playsInline,
+    titleBounds:JSON.parse(canvas.dataset.titleBounds||'null'),
     fallback:canvas.dataset.fallback||null,renderMode:canvas.dataset.renderMode,
     decodedFrames:decoded?.totalVideoFrames,droppedFrames:decoded?.droppedVideoFrames,
     frameIntervalP95:Math.round(sorted[Math.floor(sorted.length*.95)]||0),

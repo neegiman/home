@@ -8,7 +8,7 @@
   intro.queueFrame=()=>{};intro.start();
   await new Promise(resolve=>video.addEventListener('loadeddata',resolve,{once:true}));
   video.pause();intro.ready=true;
-  video.currentTime=3.8;
+  video.currentTime=window.__freezeTime||3.8;
   await new Promise(resolve=>video.addEventListener('seeked',resolve,{once:true}));
   intro.elapsed=video.currentTime*1000;intro.draw();
   window.__frozenIntro=intro;

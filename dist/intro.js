@@ -2,7 +2,7 @@
 (() => {
   "use strict";
   const STORAGE_KEY = `pixel-clash:opening:v1:${new URL(".", location.href).pathname}`;
-  const VERSION = "20261005-3d-v1";
+  const VERSION = "20261005-mobile-safe-v2";
   const SEQUENCE = Object.freeze([
     ["ARCHER_REAR_VIEW", 0, 2000], ["BOW_DRAW", 2000, 4500],
     ["ARROW_RELEASE", 4500, 5166], ["ARROW_FOLLOW", 5166, 6500],
@@ -24,6 +24,14 @@
   class Rendered3DIntroAnimation {
     static active = null;
     static seen = false;
+    static selectMovie({ width = innerWidth, height = innerHeight, dpr = devicePixelRatio || 1,
+      portrait = matchMedia("(orientation: portrait)").matches,
+      connection = navigator.connection, reducedData = matchMedia("(prefers-reduced-data: reduce)").matches } = {}) {
+      const profile = portrait || (width <= 768 && height > width) ? "mobile" : "desktop";
+      const constrained = reducedData || connection?.saveData || /(^|-)2g$/.test(connection?.effectiveType || "");
+      const lite = profile === "mobile" && (constrained || width * dpr <= 720);
+      return { profile, quality: lite ? "mobile-lite" : profile };
+    }
     static rememberVisit() {
       this.seen = true;
       for (const name of ["localStorage", "sessionStorage"]) {
@@ -48,7 +56,9 @@
       this.reduced = matchMedia("(prefers-reduced-motion: reduce)").matches;
       this.duration = this.reduced ? 600 : 10000;
       this.elapsed = 0; this.ready = false; this.resumeOnVisible = false;
-      this.profile = innerWidth / innerHeight < .85 ? "mobile" : "desktop";
+      // Choose once per entry. A rotation never swaps source or restarts playback.
+      const movie = Rendered3DIntroAnimation.selectMovie();
+      this.profile = movie.profile; this.quality = movie.quality;
       const { signal } = this.controller;
       skipButton.addEventListener("click", () => this.finish("skip"), { signal });
       this.playButton.addEventListener("click", () => this.play(), { signal });
@@ -60,6 +70,7 @@
       this.video.addEventListener("playing", () => {
         clearTimeout(this.assetTimer); clearTimeout(this.stallTimer); this.ready = true; this.caption.textContent = "";
         this.playButton.hidden = true; this.view.dataset.buffering = "false";
+        this.view.dataset.ready = "true";
       }, { signal });
       this.video.addEventListener("waiting", () => {
         this.view.dataset.buffering = "true";
@@ -86,16 +97,18 @@
       this.playButton.hidden = true; this.canvas.dataset.running = "true";
       this.canvas.dataset.renderMode = this.reduced ? "reduced-logo" : "rendered-3d-video";
       this.view.dataset.profile = this.profile;
+      this.view.dataset.quality = this.quality; this.view.dataset.ready = "false";
+      delete this.canvas.dataset.fallback;
       document.documentElement.classList.remove("intro-pending"); document.body.classList.add("intro-playing");
       document.body.style.setProperty("--intro-crt", "0"); this.resize();
       if (this.reduced) {
         this.video.hidden = true; this.ready = true; this.lastTime = performance.now();
       } else {
         this.video.hidden = false; this.video.muted = true; this.video.defaultMuted = true;
-        this.video.playsInline = true; this.video.preload = "auto";
+        this.video.playsInline = true; this.video.autoplay = true; this.video.preload = "auto";
         // Direct tournament/share links and reduced motion never request either movie.
-        this.video.poster = `assets/intro/3d-v1/poster-${this.profile}.webp?v=${VERSION}`;
-        this.video.src = `assets/intro/3d-v1/opening-${this.profile}.mp4?v=${VERSION}`;
+        this.video.poster = `assets/video/pixel-clash-intro-poster${this.profile === "mobile" ? "-mobile" : ""}.webp?v=${VERSION}`;
+        this.video.src = `assets/video/pixel-clash-intro-${this.quality}.mp4?v=${VERSION}`;
         this.video.load(); this.caption.textContent = "경기장을 준비하는 중";
         this.assetTimer = setTimeout(() => this.fallback("load-timeout"), 8000); this.play();
       }
@@ -121,6 +134,11 @@
     }
     resize() {
       this.width = innerWidth; this.height = innerHeight; this.dpr = Math.min(devicePixelRatio || 1, 2);
+      const ratio = this.width / this.height, sourceRatio = this.profile === "mobile" ? 9/16 : 16/9;
+      // Cover normal phones; preserve the shot after rotation or on tablets/ultrawide screens.
+      const mismatched = (ratio < 1) !== (this.profile === "mobile");
+      const excessiveCrop = Math.min(ratio/sourceRatio, sourceRatio/ratio) < .72 || (this.profile === "mobile" && ratio > .65);
+      this.view.dataset.fit = mismatched || excessiveCrop ? "contain" : "cover";
       this.canvas.width = Math.round(this.width * this.dpr); this.canvas.height = Math.round(this.height * this.dpr);
       this.context.setTransform(this.dpr,0,0,this.dpr,0,0); this.draw();
     }
@@ -140,22 +158,27 @@
       });
     }
     drawTitle(progress = 1) {
-      const c = this.context, text = "PIXEL CLASH";
-      const size = Math.max(3, Math.floor(Math.min(this.width*.76/65, this.height*.065/7)));
-      const width = 65*size, height=7*size, x=(this.width-width)/2, y=this.height*.17;
+      const c = this.context, portrait = this.width < this.height;
+      const lines = portrait ? ["PIXEL", "CLASH"] : ["PIXEL CLASH"];
+      const cells = portrait ? 29 : 65;
+      const size = Math.max(2, Math.round(Math.min(this.width*(portrait?.74:.46)/cells, this.height*.25/(portrait?16:7))));
+      const width = cells*size, height=(portrait?16:7)*size, x=(this.width-width)/2, y=(this.height-height)/2;
+      this.canvas.dataset.titleBounds = JSON.stringify({x,y,width,height,lines:lines.length});
       const step = Math.floor(clamp(progress)*6), scale = step<2?.86:step<4?1.07:1;
       c.save();c.translate(this.width/2,y+height/2);c.scale(scale,scale);c.translate(-this.width/2,-y-height/2);
       c.fillStyle="#33427a";c.fillRect(x-14,y-14,width+28,height+28);
       c.fillStyle="#0d1230";c.fillRect(x-10,y-10,width+20,height+20);
-      let cursor=x;
+      lines.forEach((text,index)=>{
+      let cursor=x, lineY=y+index*9*size;
       for(const char of text){
         if(char!==" ") GLYPHS[char].forEach((row,yy)=>[...row].forEach((cell,xx)=>{
           if(cell==="1"){
-            c.fillStyle="#2658d9";c.fillRect(cursor+xx*size+size,y+yy*size+size,size,size);
-            c.fillStyle=yy<3?"#fff5cf":"#ffd84d";c.fillRect(cursor+xx*size,y+yy*size,size,size);
+            c.fillStyle="#2658d9";c.fillRect(cursor+xx*size+size,lineY+yy*size+size,size,size);
+            c.fillStyle=yy<3?"#fff5cf":"#ffd84d";c.fillRect(cursor+xx*size,lineY+yy*size,size,size);
           }
         })); cursor+=(char===" "?5:6)*size;
       }
+      });
       c.restore();
     }
     draw() {
@@ -164,7 +187,8 @@
       const {name,progress}=this.stateAt(this.elapsed);this.canvas.dataset.state=name;this.view.dataset.state=name;
       if(this.reduced){c.fillStyle="#080a18";c.fillRect(0,0,w,h);this.drawTitle();}
       else {
-        this.video.style.opacity=String(clamp(this.elapsed/400));
+        // The poster stays visible while video data is pending.
+        this.video.style.opacity=this.ready?String(clamp(this.elapsed/400)):"1";
         document.body.style.setProperty("--intro-crt",String(this.elapsed>=7333?.14*clamp((this.elapsed-7333)/2200):0));
         if(this.elapsed>=9533)this.drawTitle(progress);
       }
