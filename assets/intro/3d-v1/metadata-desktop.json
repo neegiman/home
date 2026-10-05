@@ -1,0 +1,34 @@
+{
+  "profile": "desktop",
+  "duration": 10,
+  "fps": 30,
+  "frames": 300,
+  "resolution": [
+    1280,
+    720
+  ],
+  "impactFrame": 196,
+  "transformStartFrame": 221,
+  "transformCompleteFrame": 287,
+  "bullseyeScreen": [
+    0.5,
+    0.5
+  ],
+  "pixelTargetRadius": 56.9575,
+  "pixelArrowTail": [
+    7.4482,
+    -11.2931
+  ],
+  "originalMeshes": true,
+  "jointAnimation": true,
+  "flexingBow": true,
+  "hairShapeKeys": 26,
+  "pixelQuads": 36864,
+  "pixelReveal": "target-first, center-out, separately authored game art",
+  "cameraCuts": [
+    1,
+    156,
+    196
+  ],
+  "audio": false
+}

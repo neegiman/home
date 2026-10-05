@@ -1,0 +1,34 @@
+{
+  "profile": "mobile",
+  "duration": 10,
+  "fps": 30,
+  "frames": 300,
+  "resolution": [
+    576,
+    1024
+  ],
+  "impactFrame": 196,
+  "transformStartFrame": 221,
+  "transformCompleteFrame": 287,
+  "bullseyeScreen": [
+    0.5,
+    0.5
+  ],
+  "pixelTargetRadius": 59.9553,
+  "pixelArrowTail": [
+    7.8402,
+    -11.8874
+  ],
+  "originalMeshes": true,
+  "jointAnimation": true,
+  "flexingBow": true,
+  "hairShapeKeys": 26,
+  "pixelQuads": 36864,
+  "pixelReveal": "target-first, center-out, separately authored game art",
+  "cameraCuts": [
+    1,
+    156,
+    196
+  ],
+  "audio": false
+}
