@@ -1,0 +1,47 @@
+PIXEL CLASH opening archer — generation record
+
+Generation mode: built-in imagegen tool, edit / identity preservation.
+Reference: assets/characters/human-v1/explorer-m.png (existing project artwork).
+Original master: dev-tools/intro-archer-reference-v1.png.
+Runtime atlas: assets/characters/intro-archer-v1.png.
+Runtime cell size: 128x128, 3 columns x 3 rows, transparent RGBA.
+Processing: alpha-preserving slicing, nearest-neighbor reduction, common scale,
+head anchor x=45 and boot baseline y=124. No tracing or commercial sprites.
+
+Submitted prompt:
+Use case: identity-preserve.
+Asset type: production transparent pixel-art sprite atlas for a 5-second archery opening cutscene.
+Input image 1 is the project's existing explorer participant sprite atlas. Preserve that SAME original adult man's face, brown hair, muted olive/cream adventure outfit, boots, human 5.5-6 head proportions, dark 1-pixel outline and crisp low-resolution shading. Transform this atlas into NINE new archery poses, NOT walking/crying poses. Do not create a separate visual universe.
+Output exactly 3 columns by 3 rows of equal square cells on one square canvas. All nine full-body sprites face RIGHT, side / three-quarter view. Same scale and fixed head position and boot baseline across every cell. Head/face is stable, limbs genuinely change position. Include the complete bow and both hands INSIDE every cell, generous transparent edge padding. Body roughly 106 pixels high when reduced to 128x128 per cell. Restrained adult non-chibi retro adventure competitor. Each cell has true transparent background, no ground shadow, no UI, no labels, no grids, no text, no glow, no background.
+Reading order:
+cell1 IDLE: holding a slim gold/wood recurve bow upright in the forward left hand, a short cream arrow nocked, right hand near string.
+cell2 DRAW01: begins pulling string, right elbow goes back slightly, bow gently bends.
+cell3 DRAW02: string further back, right elbow farther behind, right hand near chest, arrow points level right.
+cell4 DRAW03: right hand closer to jaw, forward arm straight, upper torso subtly turns.
+cell5 DRAW04: near full draw, bow visibly bent, right elbow behind body, fingers hold string at cheek, clothes subtly shift.
+cell6 DRAW05: full tension, eyes focused right, stable head, bow bent strongest, arrow remains level. Clearly drawn taut string with distinct angled halves meeting at pulling hand.
+cell7 RELEASE01: fingers open at cheek, string snaps forward, arrow NO LONGER in sprite (separate projectile will be rendered at runtime).
+cell8 RELEASE02: bow rebounds forward, right hand follows backward, upper body slight recoil, NO arrow.
+cell9 RELEASE03: composed follow-through, bow hand steady, right hand relaxed beside head, NO arrow.
+Every drawing pose must be anatomically plausible archery and visually distinct. Do NOT use identical figures shifted, scaled or rotated. No commercial game character, official logo, fantasy weapon ornament, oversized heads, photorealism, anti-aliased vector rendering, 3D or painterly illustration. SAME pixel density and palette as the input.
+
+Implementation:
+intro.js owns the opening only; app.js retains all tournament state and routing.
+0–0.2s black; 0.2–1.8s arena / spotlight / five drawing poses;
+1.8–2.1s still tension; 2.1–2.35s three release poses;
+2.35–3.5s projectile-follow camera / four-speed arena parallax;
+3.5–4.5s bullseye / 16 debris particles / brief flash and 3px shake;
+4.5–5.0s bitmap PIXEL CLASH logo; 5.0–5.3s pixel wipe to registration.
+Palette is read from existing CSS tokens; existing CRT overlay is reused.
+Reduced motion uses a 600ms static logo / wipe instead of the full cutscene.
+Session storage suppresses replay on reload; ?intro=1 enables debug replay.
+Tournament and share parameters always bypass the opening, even with intro=1.
+Assets are local; failed or slow asset loading falls back to the short logo.
+requestAnimationFrame, timeouts and event listeners are cleaned up on completion,
+skip, replacement or pagehide. Hidden tabs pause instead of racing to the end.
+
+Verification:
+Run dev-tools/check-intro.cjs with the bundled sharp dependency on NODE_PATH.
+Browser checks: desktop 1440x900, mobile 390x844, all nine sprite frames,
+all eight scene states, skip button, direct links, reduced motion, input after
+the wipe, no overflow, no runtime errors, loop/listener cleanup.
