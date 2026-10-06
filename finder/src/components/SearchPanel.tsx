@@ -22,12 +22,12 @@ import {
   type StoredSelection,
 } from '@/lib/browser-history'
 import { getPopularityStars } from '@/lib/popularity'
+import { searchRestaurants } from '@/lib/restaurants'
 import {
   CATEGORY_LABELS,
   type Category,
   type Radius,
   type Restaurant,
-  type RestaurantSearchResponse,
 } from '@/types/restaurant'
 
 const SELECTION_STORAGE_KEY = 'nearby-table:office-selections:v1'
@@ -203,9 +203,7 @@ export function SearchPanel() {
       return
     }
 
-    const controller = new AbortController()
-
-    async function fetchRestaurants() {
+    function loadRestaurants() {
       setStep(1)
       setIsLoading(true)
       setApiError(null)
@@ -215,33 +213,16 @@ export function SearchPanel() {
       setRandomSelectionError(null)
       setSelectedRestaurantId(null)
 
-      const params = new URLSearchParams({
-        lat: String(location.lat),
-        lng: String(location.lng),
-        radius: String(radius),
-        category,
-      })
-
       try {
-        const response = await fetch(`/api/restaurants?${params}`, {
-          cache: 'no-store',
-          signal: controller.signal,
-        })
-        const data = (await response.json()) as
-          | RestaurantSearchResponse
-          | { error: string }
-
-        if (!response.ok || 'error' in data) {
-          throw new Error(
-            'error' in data ? data.error : '검색 중 오류가 발생했습니다.',
-          )
-        }
-
-        setRestaurantResults(data.restaurants)
+        // The public snapshot is bundled with the page, so GitHub Pages does
+        // not need a Next.js API server or expose any private API keys.
+        setRestaurantResults(searchRestaurants({
+          lat: location.lat,
+          lng: location.lng,
+          radius,
+          category,
+        }))
       } catch (error) {
-        if (error instanceof DOMException && error.name === 'AbortError') {
-          return
-        }
         setRestaurantResults([])
         setApiError(
           error instanceof Error
@@ -249,14 +230,11 @@ export function SearchPanel() {
             : '음식점 정보를 불러오지 못했습니다.',
         )
       } finally {
-        if (!controller.signal.aborted) {
-          setIsLoading(false)
-        }
+        setIsLoading(false)
       }
     }
 
-    void fetchRestaurants()
-    return () => controller.abort()
+    loadRestaurants()
   }, [category, hasLoadedSelectionStats, location.lat, location.lng, radius, searchVersion])
 
   const handleRestaurantSelect = useCallback((id: number) => {

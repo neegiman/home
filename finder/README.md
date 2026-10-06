@@ -81,7 +81,7 @@ src/data/office-restaurants.ts (확인된 메뉴 정보 병합)
         ↓
 직선거리 계산(Haversine) + 반경·카테고리 필터
         ↓
-GET /api/restaurants
+브라우저에서 동일한 스냅샷·검색 함수 실행 (서버 API 불필요)
         ↓
 거리순 목록 → 두 곳 추첨 → 브라우저에 선택 저장 → 길찾기
 ```
@@ -111,6 +111,9 @@ npm start
 
 ## API
 
+현재 화면은 포함된 매장 스냅샷을 브라우저에서 직접 검색합니다. 아래 API는
+일반 Next.js 서버로 실행할 때만 제공되며, GitHub Pages 화면에서는 호출하지 않습니다.
+
 ```http
 GET /api/restaurants?lat=37.540496120947&lng=126.972590790583&radius=1000&category=ALL
 ```
@@ -118,6 +121,26 @@ GET /api/restaurants?lat=37.540496120947&lng=126.972590790583&radius=1000&catego
 `radius`는 `500`, `1000`, `1500` 중 하나이며 `category`는 `ALL`,
 `KOREAN`, `CHINESE`, `JAPANESE`, `WESTERN`, `ASIAN`, `FAST_FOOD`,
 `SNACK`을 지원합니다.
+
+## GitHub Pages 배포
+
+공개 주소: [https://neegiman.github.io/finder/](https://neegiman.github.io/finder/)
+
+```bash
+npm ci
+npm run build:pages
+npm run preview:pages
+```
+
+`pages-site/out/`에 `index.html`과 `/finder/` 경로용 정적 자산이 생성됩니다.
+미리보기 주소는 `http://127.0.0.1:3001/finder/`입니다.
+이 폴더의 내용을 `neegiman/finder` 배포용 저장소의 `main` 루트에 게시하고
+GitHub Pages의 게시 소스를 `main` / `/`로 설정합니다.
+소스는 `neegiman/home` 저장소의 `finder/`에서 관리하며 기존 게임 페이지는 변경하지 않습니다.
+
+정적 버전도 음식점 필터·두 곳 추첨·운세·카페·브라우저 별점·카카오맵 길찾기가
+동작합니다. `/api` 서버, 데이터베이스, 비밀키 없이 실행되며 포함된 스냅샷 데이터는
+재조회·재빌드·재게시할 때 갱신됩니다. 일반 서버 빌드와 정적 빌드는 출력 폴더가 분리됩니다.
 
 ## 주요 파일
 

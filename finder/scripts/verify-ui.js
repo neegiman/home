@@ -25,6 +25,7 @@
   }
   const nativeDate = Date
   const nativeOpen = window.open
+  const initialHostname = location.hostname
   let openedDirectionsUrl = null
   let simulatedNow = nativeDate.parse('2026-10-05T03:00:00Z')
   window.Date = class extends nativeDate {
@@ -74,7 +75,7 @@
     await waitFor(() => !!document.querySelector('.cafe-recommendations'))
     check(document.querySelector('.steps-sheet').dataset.step === '3', '단계 3 선택 완료 및 카페 추천으로 전환')
     check(candidates().length === 1 && names()[0] === selectedName, '선택 완료 화면은 선택한 한 곳에 집중')
-    check(location.hostname === '127.0.0.1', '팝업 차단 시 현재 화면 유지')
+    check(location.hostname === initialHostname, '팝업 차단 시 현재 화면 유지')
     check(!!document.querySelector('.directions-blocked'), '팝업 차단 시 길찾기 안내')
     const selectedRoute = new URL(openedDirectionsUrl)
     check(selectedRoute.hostname === 'map.kakao.com' && selectedRoute.pathname.startsWith('/link/by/walk/'), '음식점 선택 시 카카오맵 도보 길찾기')

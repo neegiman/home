@@ -5,6 +5,8 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build",
+    "build:pages": "next build pages-site",
+    "preview:pages": "node scripts/preview-pages.mjs",
     "start": "next start",
     "typecheck": "tsc --noEmit",
     "verify:data": "tsx scripts/verify-data.ts",
