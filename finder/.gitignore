@@ -1,0 +1,23 @@
+# dependencies and generated output
+node_modules/
+.next/
+.next-*/
+out/
+build/
+
+# private local configuration (the template is safe to commit)
+.env*
+!.env.example
+
+# logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# operating systems, editors, and TypeScript cache
+.DS_Store
+Thumbs.db
+*.swp
+*.tsbuildinfo
+next-env.d.ts

@@ -1,0 +1,28 @@
+{
+  "name": "restaurant-map",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "typecheck": "tsc --noEmit",
+    "verify:data": "tsx scripts/verify-data.ts",
+    "data:refresh": "tsx scripts/refresh-office-businesses.ts",
+    "db:seed": "tsx scripts/seed-restaurants.ts"
+  },
+  "dependencies": {
+    "next": "16.3.8",
+    "pg": "8.23.1",
+    "react": "19.3.0",
+    "react-dom": "19.3.0"
+  },
+  "devDependencies": {
+    "@types/node": "26.6.4",
+    "@types/pg": "8.23.1",
+    "@types/react": "19.3.0",
+    "@types/react-dom": "19.3.0",
+    "tsx": "4.23.15",
+    "typescript": "7.0.2"
+  }
+}
