@@ -34,13 +34,19 @@
 .steps-progress li.is-current { color: var(--ink); font-weight: 800; }
 .steps-progress li.is-current > span { border-color: var(--accent); color: white; background: var(--accent); }
 .steps-progress li.is-complete > span { border-color: var(--accent); color: var(--accent-dark); background: var(--accent-soft); }
-.steps-fortune { border-top: 1px solid var(--line); padding-top: 18px; }
-.steps-fortune summary { display: flex; align-items: center; gap: 8px; min-height: 44px; cursor: pointer; list-style: none; font-size: 13px; }
+.steps-fortune { margin-top: 24px; padding: 16px; border: 1px solid #f4b69c; border-radius: 20px; background: linear-gradient(125deg, #fff0e6, #fff8e4); box-shadow: 0 7px 22px rgba(181, 92, 37, .08); }
+.steps-fortune summary { display: flex; align-items: center; gap: 12px; min-height: 64px; cursor: pointer; list-style: none; }
 .steps-fortune summary::-webkit-details-marker { display: none; }
-.steps-fortune summary > span:first-child { color: var(--accent-dark); font-size: 20px; }
-.steps-expand { margin-left: auto; font-size: 19px; color: var(--muted); transition: transform 150ms ease; }
+.steps-fortune summary:focus-visible { outline: 3px solid var(--accent-dark); outline-offset: 5px; border-radius: 10px; }
+.steps-fortune-spark { display: grid; width: 44px; height: 44px; flex-shrink: 0; place-items: center; border-radius: 15px; color: #fff8e7; background: #c55030; font-size: 30px; box-shadow: 0 4px 12px rgba(197, 80, 48, .16); }
+.steps-fortune-copy { display: grid; min-width: 0; gap: 5px; }
+.steps-fortune-badge { width: fit-content; padding: 3px 7px; border-radius: 6px; color: #934222; background: #ffe0c3; font-size: 10px; font-weight: 700; }
+.steps-fortune-copy strong { color: #7b3426; font-size: 15px; font-weight: 800; line-height: 1.6; letter-spacing: -.035em; }
+.steps-fortune-copy small { color: #7e5944; font-size: 11px; line-height: 1.7; }
+.steps-expand { display: grid; width: 28px; height: 28px; flex-shrink: 0; margin-left: auto; place-items: center; border-radius: 50%; color: #8f432d; background: #ffdfc9; font-size: 20px; transition: transform 150ms ease; }
 .steps-fortune[open] .steps-expand { transform: rotate(45deg); }
-.steps-fortune > small { display: block; margin-top: 0; color: var(--muted); font-size: 11px; }
+.steps-fortune:hover { border-color: #d77e56; }
+@media (prefers-reduced-motion: reduce) { .steps-expand { transition: none; } }
 .steps-sheet { min-width: 0; min-height: 548px; padding: 32px; border-radius: 26px; background: var(--card); box-shadow: 0 14px 48px rgba(69, 47, 26, .07); }
 .steps-sheet > h2 { margin: 10px 0 8px; color: var(--ink); font-size: 28px; font-weight: 800; letter-spacing: -.055em; line-height: 1.45; }
 .steps-sheet > h2:focus { outline: 2px solid #f6caba; outline-offset: 5px; border-radius: 3px; }
@@ -164,6 +170,11 @@
 .steps-app .fortune-restaurant strong { white-space: normal; overflow-wrap: anywhere; font-size: 17px; }
 .steps-app .fortune-restaurant-meta { overflow: visible; white-space: normal; font-size: 11px; }
 .steps-app .fortune-restaurant > button { justify-content: center; }
+.steps-app .fortune-memory { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 0 8px; margin-top: 12px; padding: 4px 10px; border-radius: 10px; color: #4a6150; background: #eef4e9; font-size: 11px; line-height: 1.8; }
+.steps-app .fortune-memory button { min-height: 44px; padding: 8px 0; border: 0; color: #4a6150; background: transparent; cursor: pointer; font-size: 11px; text-decoration: underline; text-underline-offset: 3px; }
+.steps-app .fortune-memory button:focus-visible { outline: 2px solid #4a6150; outline-offset: 3px; border-radius: 4px; }
+.steps-app .fortune-storage-notice { margin: 10px 0 0; color: #79502f; font-size: 11px; line-height: 1.8; }
+.steps-app .fortune-privacy { color: var(--muted); }
 
 @media (max-width: 860px) {
   .steps-header, .steps-flow, .steps-browse, .steps-footer, .steps-app .steps-notice { width: min(660px, calc(100% - 40px)); }
@@ -176,7 +187,7 @@
   .steps-progress { display: flex; flex-wrap: wrap; gap: 15px; margin: 20px 0 17px; }
   .steps-progress li { gap: 6px; font-size: 12px; }
   .steps-progress li > span { width: 26px; height: 26px; font-size: 11px; }
-  .steps-fortune { padding-top: 6px; }
+  .steps-fortune { margin-top: 18px; }
   .steps-fortune .fortune-picker { max-width: 480px; }
   .steps-sheet { min-height: 0; padding: 28px; }
   .steps-sheet > h2 { font-size: 26px; }

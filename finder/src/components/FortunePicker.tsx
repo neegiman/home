@@ -1,6 +1,6 @@
 'use client'
 
-import { type FormEvent, useState } from 'react'
+import { type FormEvent, useEffect, useState } from 'react'
 
 import { MenuPreview } from '@/components/MenuPreview'
 import {
@@ -8,6 +8,17 @@ import {
   openKakaoWalkingDirections,
 } from '@/lib/kakao-directions'
 import { formatStraightLineDistance } from '@/lib/distance'
+import { getTodayKey } from '@/lib/browser-history'
+import {
+  FORTUNE_BIRTH_STORAGE_KEY,
+  MINIMUM_FORTUNE_AGE,
+  formatBirthDate,
+  getFortuneAge,
+  isAtLeastNineteen,
+  isValidBirthDate,
+  parseFortuneBirthDate,
+  type StoredFortuneBirthDate,
+} from '@/lib/fortune-profile'
 import type { Location, Restaurant } from '@/types/restaurant'
 
 const FORTUNE_FLOWS = [
@@ -82,7 +93,6 @@ const ZODIAC_SIGNS = [
 ] as const
 
 const ZODIAC_CUTOFF_DAYS = [20, 19, 20, 20, 21, 21, 22, 22, 22, 23, 22, 22]
-const MINIMUM_FORTUNE_AGE = 19
 const BIRTH_MONTHS = Array.from({ length: 12 }, (_, index) => index + 1)
 const BIRTH_DAYS = Array.from({ length: 31 }, (_, index) => index + 1)
 
@@ -101,38 +111,6 @@ interface FortunePickerProps {
   location: Location
   restaurants: Restaurant[]
   todayKey: string
-}
-
-function isValidBirthDate(value: string, todayKey: string) {
-  const [year, month, day] = value.split('-').map(Number)
-
-  if (!year || !month || !day) {
-    return false
-  }
-
-  const parsedDate = new Date(year, month - 1, day)
-
-  return (
-    parsedDate.getFullYear() === year &&
-    parsedDate.getMonth() === month - 1 &&
-    parsedDate.getDate() === day &&
-    value <= todayKey
-  )
-}
-
-function isAtLeastNineteen(value: string, todayKey: string) {
-  const [birthYear, birthMonth, birthDay] = value.split('-').map(Number)
-  const [currentYear, currentMonth, currentDay] = todayKey.split('-').map(Number)
-  let age = currentYear - birthYear
-
-  if (
-    currentMonth < birthMonth ||
-    (currentMonth === birthMonth && currentDay < birthDay)
-  ) {
-    age -= 1
-  }
-
-  return age >= MINIMUM_FORTUNE_AGE
 }
 
 function hashSeed(value: string) {
@@ -174,10 +152,12 @@ export function FortunePicker({
   const [birthDay, setBirthDay] = useState('')
   const [error, setError] = useState<string | null>(null)
   const [result, setResult] = useState<FortuneResult | null>(null)
-  const birthDate =
-    birthYear && birthMonth && birthDay
-      ? `${birthYear}-${birthMonth.padStart(2, '0')}-${birthDay.padStart(2, '0')}`
-      : ''
+  const [rememberedBirthDate, setRememberedBirthDate] = useState<string | null>(null)
+  const [storageNotice, setStorageNotice] = useState<string | null>(null)
+  const birthDate = formatBirthDate(birthYear, birthMonth, birthDay)
+  const rememberedAge = rememberedBirthDate
+    ? getFortuneAge(rememberedBirthDate, todayKey)
+    : null
   const daysInSelectedMonth =
     birthYear && birthMonth
       ? new Date(Number(birthYear), Number(birthMonth), 0).getDate()
@@ -190,6 +170,63 @@ export function FortunePicker({
       ? (restaurants.find((restaurant) => restaurant.id === result.restaurantId) ??
         null)
       : null
+
+  useEffect(() => {
+    try {
+      // Read only after hydration; the exported page has no browser storage.
+      const saved = parseFortuneBirthDate(
+        window.localStorage.getItem(FORTUNE_BIRTH_STORAGE_KEY),
+        getTodayKey(),
+      )
+      if (!saved) return
+      const [year, month, day] = saved.birthDate.split('-')
+      setBirthYear(year)
+      setBirthMonth(String(Number(month)))
+      setBirthDay(String(Number(day)))
+      setRememberedBirthDate(saved.birthDate)
+    } catch {
+      setStorageNotice('브라우저 저장소를 사용할 수 없어 이번 화면에서만 입력할 수 있어요.')
+    }
+  }, [])
+
+  function rememberBirthDate(value: string) {
+    if (!isAtLeastNineteen(value, todayKey)) return
+    const payload: StoredFortuneBirthDate = { version: 1, birthDate: value }
+    try {
+      window.localStorage.setItem(FORTUNE_BIRTH_STORAGE_KEY, JSON.stringify(payload))
+      setRememberedBirthDate(value)
+      setStorageNotice(null)
+    } catch {
+      setStorageNotice('생년월일을 저장하지 못했어요. 운세는 이번 화면에서 그대로 볼 수 있어요.')
+    }
+  }
+
+  function updateBirthDate(year: string, month: string, day: string) {
+    const validDay = year && month && day &&
+      Number(day) > new Date(Number(year), Number(month), 0).getDate() ? '' : day
+    setBirthYear(year)
+    setBirthMonth(month)
+    setBirthDay(validDay)
+    setError(null)
+    rememberBirthDate(formatBirthDate(year, month, validDay))
+  }
+
+  function forgetBirthDate() {
+    try {
+      window.localStorage.removeItem(FORTUNE_BIRTH_STORAGE_KEY)
+    } catch {
+      setStorageNotice('저장된 생년월일을 삭제하지 못했어요. 브라우저의 저장소 설정을 확인해 주세요.')
+      return
+    }
+    setBirthYear('')
+    setBirthMonth('')
+    setBirthDay('')
+    setRememberedBirthDate(null)
+    setResult(null)
+    setError(null)
+    setBlockedDirectionsId(null)
+    setStorageNotice('저장된 생년월일을 삭제했어요.')
+  }
 
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
@@ -209,6 +246,8 @@ export function FortunePicker({
       setResult(null)
       return
     }
+
+    rememberBirthDate(birthDate)
 
     if (restaurants.length === 0) {
       setError('현재 조건에서 추천할 음식점이 없어요.')
@@ -262,21 +301,7 @@ export function FortunePicker({
               <select
                 aria-describedby="fortune-age-note fortune-privacy"
                 autoComplete="bday-year"
-                onChange={(event) => {
-                  const nextYear = event.target.value
-                  setBirthYear(nextYear)
-                  setError(null)
-
-                  if (
-                    nextYear &&
-                    birthMonth &&
-                    birthDay &&
-                    Number(birthDay) >
-                      new Date(Number(nextYear), Number(birthMonth), 0).getDate()
-                  ) {
-                    setBirthDay('')
-                  }
-                }}
+                onChange={(event) => updateBirthDate(event.target.value, birthMonth, birthDay)}
                 value={birthYear}
               >
                 <option value="">연도</option>
@@ -293,20 +318,7 @@ export function FortunePicker({
                 aria-describedby="fortune-age-note fortune-privacy"
                 autoComplete="bday-month"
                 disabled={!birthYear}
-                onChange={(event) => {
-                  const nextMonth = event.target.value
-                  setBirthMonth(nextMonth)
-                  setError(null)
-
-                  if (
-                    nextMonth &&
-                    birthDay &&
-                    Number(birthDay) >
-                      new Date(Number(birthYear), Number(nextMonth), 0).getDate()
-                  ) {
-                    setBirthDay('')
-                  }
-                }}
+                onChange={(event) => updateBirthDate(birthYear, event.target.value, birthDay)}
                 value={birthMonth}
               >
                 <option value="">월</option>
@@ -323,10 +335,7 @@ export function FortunePicker({
                 aria-describedby="fortune-age-note fortune-privacy"
                 autoComplete="bday-day"
                 disabled={!birthMonth}
-                onChange={(event) => {
-                  setBirthDay(event.target.value)
-                  setError(null)
-                }}
+                onChange={(event) => updateBirthDate(birthYear, birthMonth, event.target.value)}
                 value={birthDay}
               >
                 <option value="">일</option>
@@ -345,6 +354,21 @@ export function FortunePicker({
           </button>
         </div>
       </form>
+
+      {rememberedBirthDate ? (
+        <div className="fortune-memory">
+          <span>
+            <span aria-hidden="true">✓ </span>
+            {birthDate === rememberedBirthDate
+              ? `만 ${rememberedAge}세 · 이 브라우저에 기억했어요`
+              : '이전에 입력한 생년월일을 기억하고 있어요'}
+          </span>
+          <button aria-label="저장된 생년월일 삭제" onClick={forgetBirthDate} type="button">
+            저장 정보 삭제
+          </button>
+        </div>
+      ) : null}
+      {storageNotice ? <p className="fortune-storage-notice" role="status">{storageNotice}</p> : null}
 
       <div className="fortune-content" aria-live="polite">
         {recommendedRestaurant && result ? (
@@ -423,7 +447,8 @@ export function FortunePicker({
         운세 추천은 만 19세 이상만 이용할 수 있어요.
       </p>
       <p className="fortune-privacy" id="fortune-privacy">
-        생년월일은 저장하거나 전송하지 않아요. 운세는 재미로만 확인해 주세요.
+        생년월일을 모두 선택하면 이 브라우저에만 자동 저장돼요. 서버로 전송하지 않으며,
+        저장 정보 삭제로 지울 수 있어요. 운세는 재미로만 확인해 주세요.
       </p>
     </section>
   )

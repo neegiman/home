@@ -443,6 +443,18 @@ export function SearchPanel() {
           <p className="steps-intro-copy">
             취향만 알려주세요.<br />다음 선택은 우리가 좁혀드릴게요.
           </p>
+          <details className="steps-fortune">
+            <summary>
+              <span className="steps-fortune-spark" aria-hidden="true">✦</span>
+              <span className="steps-fortune-copy">
+                <span className="steps-fortune-badge">오늘의 행운픽</span>
+                <strong>취향 대신 운세로 고를래요</strong>
+                <small>고민될 땐 오늘의 행운에 맡겨봐요 · 만 19세 이상</small>
+              </span>
+              <span className="steps-expand" aria-hidden="true">+</span>
+            </summary>
+            <FortunePicker isLoading={isLoading} location={location} restaurants={lunchEligibleRestaurants} todayKey={todayKey} />
+          </details>
           <ol className="steps-progress" aria-label="점심 선택 진행 단계">
             {['취향 고르기', '두 곳 비교', '커피까지'].map((label, index) => (
               <li aria-current={step === index + 1 ? 'step' : undefined} className={step === index + 1 ? 'is-current' : step > index + 1 ? 'is-complete' : undefined} key={label}>
@@ -450,11 +462,6 @@ export function SearchPanel() {
               </li>
             ))}
           </ol>
-          <details className="steps-fortune">
-            <summary><span aria-hidden="true">✦</span>취향 대신 운세로 고를래요<span className="steps-expand" aria-hidden="true">+</span></summary>
-            <small>재미로 보는 음식 운세 · 만 19세 이상</small>
-            <FortunePicker isLoading={isLoading} location={location} restaurants={lunchEligibleRestaurants} todayKey={todayKey} />
-          </details>
         </aside>
 
         <section aria-labelledby="steps-stage-title" className="steps-sheet" data-step={step}>

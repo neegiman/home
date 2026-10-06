@@ -123,8 +123,10 @@
     document.querySelector('.fortune-form button').click()
     await waitFor(() => !!document.querySelector('.fortune-error'))
     check(document.querySelector('.fortune-error').textContent.includes('만 19세'), '만 19세 미만 운세 차단')
+    check(localStorage.getItem('nearby-table:fortune-birth-date:v1') === null, '만 19세 미만 생년월일 저장 금지')
     select('태어난 연도', '2000')
     await new Promise((resolve) => setTimeout(resolve, 50))
+    check(JSON.parse(localStorage.getItem('nearby-table:fortune-birth-date:v1')).birthDate === '2000-10-07', '성인 생년월일 완성 시 자동 저장')
     document.querySelector('.fortune-form button').click()
     await waitFor(() => !!document.querySelector('.fortune-result'))
     check(!!document.querySelector('.fortune-restaurant strong'), '성인 운세 음식점 추천')
@@ -135,6 +137,9 @@
     check(directionsOpenCount === 1, '운세 길찾기 버튼을 눌렀을 때만 지도 호출')
     check(new URL(openedDirectionsUrl).hostname === 'map.kakao.com', '운세 길찾기도 카카오맵으로 통일')
     check(document.querySelector('.fortune-directions-fallback').href === openedDirectionsUrl, '운세 팝업 차단 대체 링크도 카카오맵')
+    document.querySelector('.fortune-memory button').click()
+    await waitFor(() => !document.querySelector('.fortune-memory'))
+    check(localStorage.getItem('nearby-table:fortune-birth-date:v1') === null, '운세 저장 정보 삭제')
     document.querySelector('.steps-fortune').open = false
 
     draw()
