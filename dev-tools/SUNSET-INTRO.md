@@ -10,7 +10,7 @@ The opening is a live 2D painted-texture animation, **not** an AI-generated vide
 
 - 0–0.6s: the sunset appears.
 - 0.6–3.2s: small wave motion, warm reflected shimmer, slow cloud drift.
-- 3.2–4.05s: cream/gold pixel wordmark appears in the sky.
+- 3.2–4.05s: cream/gold `운명의 한판` wordmark appears in the sky, rasterized from the bundled OFL Pretendard font to a crisp pixel grid. The archived approved board retains its historical English title.
 - 4.05–5.0s: logo holds over the moving scene.
 - 5.0–5.2s: dissolve into the unmodified registration HUD.
 

@@ -1317,7 +1317,7 @@
     const url = getShareUrl();
     if (navigator.share) {
       try {
-        await navigator.share({ title: `${tournamentState.tournament.name} 결과`, text: "PIXEL CLASH 토너먼트 결과를 확인하세요!", url });
+        await navigator.share({ title: `${tournamentState.tournament.name} 결과`, text: "운명의 한판 토너먼트 결과를 확인하세요!", url });
         return;
       } catch (error) {
         if (error.name === "AbortError") return;

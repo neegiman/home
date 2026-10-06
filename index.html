@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
   <meta name="theme-color" content="#090b1d">
   <meta name="description" content="참가자를 등록하고 8비트 아케이드 스타일로 우승자와 최하위를 가리는 랜덤 토너먼트">
-  <title>PIXEL CLASH — 랜덤 토너먼트</title>
+  <title>운명의 한판 — 랜덤 토너먼트</title>
   <link rel="preload" href="assets/characters/clown-spritesheet.png" as="image" fetchpriority="high">
   <link rel="preload" href="assets/characters/clown-juggle-8f.png" as="image" fetchpriority="high">
   <link rel="preload" href="assets/characters/human-v1/minimal-m.png" as="image">
@@ -27,21 +27,21 @@
       }
     })();
   </script>
-  <link rel="stylesheet" href="styles.css?v=20261006-sunset-v1">
+  <link rel="stylesheet" href="styles.css?v=20261006-unmyeong-v1">
 </head>
 <body>
   <div class="crt" aria-hidden="true"></div>
 
   <section id="sunsetIntro" class="sunset-intro" hidden role="dialog" aria-modal="true" aria-label="노을 바다 오프닝">
     <canvas id="sunsetScene" class="sunset-intro__scene" aria-hidden="true"></canvas>
-    <canvas id="sunsetTitle" class="sunset-intro__title" role="img" aria-label="PIXEL CLASH"></canvas>
+    <canvas id="sunsetTitle" class="sunset-intro__title" role="img" aria-label="운명의 한판"></canvas>
     <button id="skipSunsetIntro" class="sunset-intro__skip" type="button">건너뛰기</button>
   </section>
 
   <main id="registrationView" class="registration-view">
     <header class="hero">
       <div class="hero__eyebrow"><span class="live-dot"></span> ARCADE SYSTEM READY</div>
-      <h1><span>PIXEL</span> CLASH</h1>
+      <h1><span>운명의</span> 한판</h1>
       <p>이름을 올리고, 운명적인 대진을 시작하세요.</p>
       <div class="coin-line" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i></div>
     </header>
@@ -132,7 +132,7 @@
 
   <main id="tournamentView" class="tournament-view" hidden>
     <header class="game-header">
-      <a class="mini-logo" href="index.html" aria-label="새 토너먼트 만들기"><span>PIXEL</span> CLASH</a>
+      <a class="mini-logo" href="index.html" aria-label="운명의 한판 · 새 토너먼트 만들기"><span>운명의</span> 한판</a>
       <div class="game-title">
         <span>TOURNAMENT</span>
         <h1 id="gameTournamentName"></h1>
@@ -227,7 +227,7 @@
 
     <section id="resultReveal" class="result-reveal">
       <header class="ending-header">
-        <div><span>PIXEL CLASH</span><strong id="shareTournamentName"></strong></div>
+        <div><span>운명의 한판</span><strong id="shareTournamentName"></strong></div>
         <div class="ending-actions">
           <button id="showEndingCredits" type="button">☷ 엔딩 캐스트</button>
           <button id="copyResultLink" type="button">⧉ 공유 링크</button>
@@ -278,7 +278,7 @@
   <div id="toast" class="toast" role="status" aria-live="polite"></div>
   <script src="assets/characters/human-v1/metrics.js?v=20261005-human-motion"></script>
   <script src="characters.js?v=20261005-human-motion"></script>
-  <script src="sunset-intro.js?v=20261006-sunset-v1"></script>
-  <script src="app.js?v=20261006-sunset-v1"></script>
+  <script src="sunset-intro.js?v=20261006-unmyeong-v1"></script>
+  <script src="app.js?v=20261006-unmyeong-v1"></script>
 </body>
 </html>

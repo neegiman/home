@@ -4,6 +4,13 @@ const root=path.resolve(__dirname,'..');
 const html=fs.readFileSync(path.join(root,'index.html'),'utf8');
 const app=fs.readFileSync(path.join(root,'app.js'),'utf8');
 const intro=fs.readFileSync(path.join(root,'sunset-intro.js'),'utf8');
+for(const [label,source] of [['HTML',html],['app',app],['opening',intro]])assert.ok(!source.includes('PIXEL CLASH'),label+' uses current brand');
+assert.ok(html.includes('<title>운명의 한판 — 랜덤 토너먼트</title>'));
+assert.ok(html.includes('aria-label="운명의 한판"'));
+assert.ok(intro.includes('const text = "운명의 한판"'));
+assert.ok(app.includes('운명의 한판 토너먼트 결과를 확인하세요!'));
+// Keep the legacy storage key so a title rename does not replay seen openings.
+assert.ok(html.includes('pixel-clash-sunset-seen-v1')&&intro.includes('pixel-clash-sunset-seen-v1'));
 for(const id of ['sunsetIntro','sunsetScene','sunsetTitle','skipSunsetIntro','registrationView','animationView','tournamentAnimation','tournamentView','finalStairView','finalStairAnimation','resultView','resultIntro'])assert.ok(html.includes(`id="${id}"`),id+' present');
 assert.ok(html.includes('navigation !== "reload"'));
 assert.ok(html.includes('navigation !== "back_forward"'));

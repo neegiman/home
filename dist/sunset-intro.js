@@ -6,27 +6,25 @@
   const clamp = (value) => Math.max(0, Math.min(1, value));
   const smooth = (value) => { const t = clamp(value); return t * t * (3 - 2 * t); };
 
-  // Pixel wordmark is text, not a painted overlay in the supplied scene.
-  const letters = {
-    P: ["11110","11011","11011","11110","11000","11000","11000"],
-    I: ["11111","01110","01110","01110","01110","01110","11111"],
-    X: ["11011","11011","01110","00100","01110","11011","11011"],
-    E: ["11111","11000","11000","11110","11000","11000","11111"],
-    L: ["11000","11000","11000","11000","11000","11000","11111"],
-    C: ["01111","11000","11000","11000","11000","11000","01111"],
-    H: ["11011","11011","11011","11111","11011","11011","11011"],
-    A: ["01110","11011","11011","11111","11011","11011","11011"],
-    S: ["01111","11000","11000","01110","00011","00011","11110"]
-  };
+  // Rasterize the existing local OFL font on a small grid: readable Hangul,
+  // crisp pixel edges, and the same cream/gold shadow as the original wordmark.
   function drawLogo(canvas) {
-    const text = "PIXEL CLASH";
-    canvas.width = 272; canvas.height = 36;
+    const text = "운명의 한판";
+    canvas.width = 224; canvas.height = 48;
     const context = canvas.getContext("2d");
+    context.font = '900 38px "Pretendard", "Malgun Gothic", sans-serif';
+    context.textAlign = "center";
+    context.textBaseline = "middle";
+    context.fillText(text, canvas.width / 2, 23);
+    const mask = context.getImageData(0, 0, canvas.width, canvas.height).data;
+    context.clearRect(0, 0, canvas.width, canvas.height);
     for (const [offset, color] of [[3,"#38243b"],[1,"#a75b3e"],[0,"#fff0bc"]]) {
       context.fillStyle = color;
-      [...text].forEach((letter, index) => letters[letter]?.forEach((row, y) => [...row].forEach((pixel, x) => {
-        if (pixel === "1") context.fillRect(4 + index * 24 + x * 4, 2 + y * 4 + offset, 4, 4);
-      })));
+      for (let y = 0; y < canvas.height - 3; y += 1) {
+        for (let x = 0; x < canvas.width; x += 1) {
+          if (mask[(y * canvas.width + x) * 4 + 3] >= 96) context.fillRect(x, y + offset, 1, 1);
+        }
+      }
     }
   }
 
@@ -120,6 +118,10 @@
       document.body.classList.add("sunset-intro-playing");
       this.skip.onclick = () => this.finish("skip"); this.skip.focus({ preventScroll: true });
       drawLogo(this.title); this.title.style.opacity = "1"; this.resize();
+      // Font preparation never delays the opening or its skip/fallback path.
+      document.fonts?.load('900 38px "Pretendard"', "운명의 한판").then(() => {
+        if (!this.done) drawLogo(this.title);
+      }).catch(() => {});
       window.addEventListener("resize",this.resize);
       window.addEventListener("keydown",this.key);
       document.addEventListener("visibilitychange",this.visibility);
