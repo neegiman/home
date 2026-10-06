@@ -1,11 +1,11 @@
 {
-  "checkedAt": "2026-10-05T21:47:01.340Z",
+  "checkedAt": "2026-10-06T00:44:14.538Z",
   "browser": "agent-browser Chromium",
   "checks": {
     "firstEntry": {
       "artRequests": 1,
       "done": false,
-      "frame": 34,
+      "frame": 31,
       "hidden": false,
       "inert": true,
       "oldMovies": 0,
@@ -34,12 +34,39 @@
       "state": "FINISHED"
     },
     "frameTiming": {
-      "elapsedMs": 5004.1,
-      "meanMs": 7.492598967297764,
-      "p95Ms": 7.600000000000364,
-      "sampleCount": 581
+      "elapsedMs": 5002.80000000596,
+      "meanMs": 7.449312714776632,
+      "p95Ms": 7.600000000000136,
+      "sampleCount": 582
     },
-    "revisit": {
+    "newTabReplay": {
+      "artRequests": 1,
+      "done": false,
+      "frame": 212,
+      "hidden": false,
+      "inert": true,
+      "oldMovies": 0,
+      "pending": true,
+      "registration": true,
+      "renderer": true,
+      "started": true,
+      "state": "WAVES"
+    },
+    "legacySeenIgnored": true,
+    "revisitReplay": {
+      "artRequests": 1,
+      "done": false,
+      "frame": 33,
+      "hidden": false,
+      "inert": true,
+      "oldMovies": 0,
+      "pending": true,
+      "registration": true,
+      "renderer": true,
+      "started": true,
+      "state": "SEA_REVEAL"
+    },
+    "reload": {
       "artRequests": 0,
       "done": false,
       "frame": 0,
@@ -81,7 +108,7 @@
     "mobile": {
       "artRequests": 1,
       "done": false,
-      "frame": 35,
+      "frame": 29,
       "hidden": false,
       "inert": true,
       "oldMovies": 0,
@@ -101,9 +128,9 @@
       ],
       "title": [
         42.90625,
-        216.1875,
+        203.7265625,
         304.1875,
-        40.25
+        65.171875
       ],
       "viewport": [
         390,

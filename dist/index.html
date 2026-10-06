@@ -18,9 +18,8 @@
       const navigation = performance.getEntriesByType("navigation")[0]?.type;
       const direct = params.has("share") || params.get("mode") === "tournament";
       const reduce = matchMedia("(prefers-reduced-motion: reduce)").matches;
-      let seen = false;
-      try { seen = localStorage.getItem("pixel-clash-sunset-seen-v1") === "1"; } catch (_) {}
-      window.__sunsetIntroEligible = !direct && !reduce && (params.get("intro") === "1" || (!seen && navigation !== "reload" && navigation !== "back_forward"));
+      // New tabs/pages play again. Shared browser storage must not suppress them.
+      window.__sunsetIntroEligible = !direct && !reduce && (params.get("intro") === "1" || (navigation !== "reload" && navigation !== "back_forward"));
       if (window.__sunsetIntroEligible) {
         document.documentElement.classList.add("sunset-intro-pending");
         window.__sunsetIntroGuard = setTimeout(() => document.documentElement.classList.remove("sunset-intro-pending"), 3500);
@@ -278,7 +277,7 @@
   <div id="toast" class="toast" role="status" aria-live="polite"></div>
   <script src="assets/characters/human-v1/metrics.js?v=20261005-human-motion"></script>
   <script src="characters.js?v=20261005-human-motion"></script>
-  <script src="sunset-intro.js?v=20261006-unmyeong-v1"></script>
+  <script src="sunset-intro.js?v=20261006-new-tab-v1"></script>
   <script src="app.js?v=20261006-unmyeong-v1"></script>
 </body>
 </html>

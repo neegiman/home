@@ -2,7 +2,6 @@
   "use strict";
   const DURATION = 5000;
   const ART = "assets/intro/sunset-v1/seascape.webp";
-  const SEEN = "pixel-clash-sunset-seen-v1";
   const clamp = (value) => Math.max(0, Math.min(1, value));
   const smooth = (value) => { const t = clamp(value); return t * t * (3 - 2 * t); };
 
@@ -110,7 +109,6 @@
       if (this.started || !window.__sunsetIntroEligible) return;
       this.started = true; this.elapsed = 0;
       clearTimeout(window.__sunsetIntroGuard);
-      try { localStorage.setItem(SEEN,"1"); } catch (_) {}
       this.previousFocus = document.activeElement;
       this.registration.inert = true;
       this.section.hidden = false;

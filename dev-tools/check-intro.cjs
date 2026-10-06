@@ -1,5 +1,6 @@
 // Opening regression checks; browser behavior is checked separately.
 const assert=require('node:assert/strict'),fs=require('node:fs'),path=require('node:path');
+const vm=require('node:vm');
 const root=path.resolve(__dirname,'..');
 const html=fs.readFileSync(path.join(root,'index.html'),'utf8');
 const app=fs.readFileSync(path.join(root,'app.js'),'utf8');
@@ -9,8 +10,25 @@ assert.ok(html.includes('<title>운명의 한판 — 랜덤 토너먼트</title>
 assert.ok(html.includes('aria-label="운명의 한판"'));
 assert.ok(intro.includes('const text = "운명의 한판"'));
 assert.ok(app.includes('운명의 한판 토너먼트 결과를 확인하세요!'));
-// Keep the legacy storage key so a title rename does not replay seen openings.
-assert.ok(html.includes('pixel-clash-sunset-seen-v1')&&intro.includes('pixel-clash-sunset-seen-v1'));
+// Test the real pre-paint gate, not a separately reimplemented predicate.
+const gate=html.match(/<script>\s*([\s\S]*?)<\/script>/)[1];
+assert.ok(!/localStorage|sessionStorage/.test(gate+intro),'opening ignores shared or cloned playback storage');
+const eligible=(search='',navigation='navigate',reduce=false)=>{
+  const classes=new Set(),window={};
+  const blockedStorage=new Proxy({}, {get(){throw new Error('Storage must not be accessed');}});
+  vm.runInNewContext(gate,{window,URLSearchParams,location:{search},performance:{getEntriesByType:()=>navigation?[{type:navigation}]:[]},matchMedia:()=>({matches:reduce}),localStorage:blockedStorage,sessionStorage:blockedStorage,document:{documentElement:{classList:{add:value=>classes.add(value),remove:value=>classes.delete(value)}}},setTimeout:()=>1});
+  assert.equal(classes.has('sunset-intro-pending'),window.__sunsetIntroEligible);
+  return window.__sunsetIntroEligible;
+};
+assert.equal(eligible(),true,'fresh registration/new tab replays');
+assert.equal(eligible('?qa=repeat'),true,'return navigation replays without a debug option');
+assert.equal(eligible('','reload'),false,'refresh skips even without storage');
+assert.equal(eligible('','back_forward'),false,'history navigation skips');
+assert.equal(eligible('?mode=tournament&intro=1'),false,'tournament takes precedence');
+assert.equal(eligible('?share=data&intro=1'),false,'share takes precedence');
+assert.equal(eligible('?intro=1','navigate',true),false,'reduced motion takes precedence');
+assert.equal(eligible('?intro=1','reload'),true,'explicit registration replay remains available');
+assert.equal(eligible('',null),true,'fresh entry works without navigation timing');
 for(const id of ['sunsetIntro','sunsetScene','sunsetTitle','skipSunsetIntro','registrationView','animationView','tournamentAnimation','tournamentView','finalStairView','finalStairAnimation','resultView','resultIntro'])assert.ok(html.includes(`id="${id}"`),id+' present');
 assert.ok(html.includes('navigation !== "reload"'));
 assert.ok(html.includes('navigation !== "back_forward"'));
@@ -24,4 +42,4 @@ assert.ok(intro.includes('this.registration.inert = false'));
 assert.ok(!html.includes('src="intro.js')&&!html.includes('<video'));
 for(const file of ['index.html','app.js','styles.css','characters.js','sunset-intro.js','assets/intro/sunset-v1/seascape.webp'])assert.ok(fs.readFileSync(path.join(root,file)).equals(fs.readFileSync(path.join(root,'dist',file))),file+' root/dist parity');
 assert.ok(fs.statSync(path.join(root,'assets/intro/sunset-v1/seascape.webp')).size < 1000000,'single optimized local image');
-console.log('PASS: 5s sunset opening, once/reload/URL/reduced-motion guards, cleanup, local asset and root/dist parity.');
+console.log('PASS: 5s sunset opening, new-tab replay/reload/URL/reduced-motion guards, cleanup, local asset and root/dist parity.');

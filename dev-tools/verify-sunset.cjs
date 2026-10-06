@@ -11,7 +11,8 @@ const state=()=>evaluate(`({started:SunsetIntro.started,done:SunsetIntro.done,hi
 const waitDone=()=>evaluate(`new Promise(resolve=>{const poll=()=>SunsetIntro.section.hidden?resolve(true):setTimeout(poll,50);poll()})`);
 const report={checkedAt:new Date().toISOString(),browser:'agent-browser Chromium',checks:{}};
 call('set','viewport','1440','900');
-evaluate(`localStorage.removeItem('pixel-clash-sunset-seen-v1')`);
+// Existing visitors must replay despite a legacy browser-wide seen record.
+evaluate(`localStorage.setItem('pixel-clash-sunset-seen-v1','1')`);
 call('open',base+'?qa=sunset-first');
 let first=state();assert.ok(first.started&&first.renderer&&first.inert&&!first.hidden);report.checks.firstEntry=first;
 // Read actual GPU pixels twice. Sky/sun/horizon is anchored while water changes.
@@ -24,8 +25,13 @@ call('screenshot',path.join(root,'dev-tools/human-sunset-desktop-title.png'));
 waitDone();
 let completed=state();assert.ok(completed.hidden&&completed.done&&!completed.inert&&!completed.pending&&completed.frame===0&&!completed.renderer);assert.equal(completed.reason,'complete');report.checks.complete=completed;
 report.checks.frameTiming=evaluate(`(()=>{const f=window.__sunsetFrames,d=f.slice(1).map((t,i)=>t-f[i]),sorted=d.slice().sort((a,b)=>a-b);return{sampleCount:d.length,meanMs:d.reduce((a,b)=>a+b,0)/d.length,p95Ms:sorted[Math.floor(sorted.length*.95)],elapsedMs:SunsetIntro.elapsed}})()`);
-call('open',base+'?qa=return');let revisit=state();assert.ok(!revisit.started&&revisit.artRequests===0);report.checks.revisit=revisit;
-evaluate(`localStorage.removeItem('pixel-clash-sunset-seen-v1')`);call('reload');let reload=state();assert.ok(!reload.started&&reload.artRequests===0);report.checks.reloadWithoutSeen=reload;
+call('tab','new','--label','opening-replay',base+'?qa=new-tab');call('wait','--load','networkidle');
+let newTab=state();assert.ok(newTab.started&&newTab.renderer&&!newTab.hidden);report.checks.newTabReplay=newTab;
+assert.equal(evaluate(`localStorage.getItem('pixel-clash-sunset-seen-v1')`),'1');report.checks.legacySeenIgnored=true;
+call('snapshot','-i');call('click','#skipSunsetIntro');
+call('open',base+'?qa=return');let revisit=state();assert.ok(revisit.started&&revisit.artRequests===1);report.checks.revisitReplay=revisit;
+call('reload');let reload=state();assert.ok(!reload.started&&reload.artRequests===0);report.checks.reload=reload;
+evaluate(`localStorage.removeItem('pixel-clash-sunset-seen-v1')`);call('reload');reload=state();assert.ok(!reload.started&&reload.artRequests===0);report.checks.reloadWithoutSeen=reload;
 call('open',base+'?intro=1');call('snapshot','-i');call('click','#skipSunsetIntro');let skip=state();assert.ok(skip.hidden&&skip.done&&!skip.inert&&skip.frame===0);assert.equal(skip.reason,'skip');report.checks.skipPointer=skip;
 call('open',base+'?intro=1');call('press','Escape');assert.equal(state().reason,'skip');report.checks.skipKeyboard=true;
 call('set','viewport','390','844');call('open',base+'dist/index.html?intro=1');
