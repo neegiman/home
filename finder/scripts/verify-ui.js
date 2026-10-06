@@ -27,6 +27,7 @@
   const nativeOpen = window.open
   const initialHostname = location.hostname
   let openedDirectionsUrl = null
+  let directionsOpenCount = 0
   let simulatedNow = nativeDate.parse('2026-10-05T03:00:00Z')
   window.Date = class extends nativeDate {
     constructor(...args) { super(...(args.length ? args : [simulatedNow])) }
@@ -67,6 +68,7 @@
     check(saved.date === '2026-10-06' && saved.restaurantIds.length === 1, '열린 화면에서 다음 날 점심 제외 초기화')
 
     window.open = (url) => {
+      directionsOpenCount += 1
       openedDirectionsUrl = String(url)
       return null
     }
@@ -75,12 +77,21 @@
     await waitFor(() => !!document.querySelector('.cafe-recommendations'))
     check(document.querySelector('.steps-sheet').dataset.step === '3', '단계 3 선택 완료 및 카페 추천으로 전환')
     check(candidates().length === 1 && names()[0] === selectedName, '선택 완료 화면은 선택한 한 곳에 집중')
-    check(location.hostname === initialHostname, '팝업 차단 시 현재 화면 유지')
-    check(!!document.querySelector('.directions-blocked'), '팝업 차단 시 길찾기 안내')
-    const selectedRoute = new URL(openedDirectionsUrl)
-    check(selectedRoute.hostname === 'map.kakao.com' && selectedRoute.pathname.startsWith('/link/by/walk/'), '음식점 선택 시 카카오맵 도보 길찾기')
+    check(location.hostname === initialHostname, '음식점 선택 후 현재 화면 유지')
+    check(directionsOpenCount === 0 && openedDirectionsUrl === null, '음식점 선택 시 길찾기 자동 호출 없음')
+    check(!document.querySelector('.directions-blocked'), '선택 직후 팝업 차단 안내 없음')
+    const directionsLink = document.querySelector('.candidate-directions-link')
+    const selectedRoute = new URL(directionsLink.href)
+    check(selectedRoute.hostname === 'map.kakao.com' && selectedRoute.pathname.startsWith('/link/by/walk/'), '별도 길찾기 버튼에 카카오맵 도보 경로 설정')
     check(decodeURIComponent(selectedRoute.pathname.split('/').at(-1).split(',')[0]) === selectedName, '카카오맵 링크의 도착지 이름 전달')
-    check(document.querySelector('.candidate-directions-link').href === openedDirectionsUrl, '직접 열기 링크도 동일한 카카오맵 경로')
+    check(directionsLink.target === '_blank' && directionsLink.rel.includes('noopener'), '길찾기 버튼은 안전한 새 탭 링크')
+    let explicitlyClickedRoute = null
+    directionsLink.addEventListener('click', (event) => {
+      event.preventDefault()
+      explicitlyClickedRoute = event.currentTarget.href
+    }, { once: true })
+    directionsLink.click()
+    check(explicitlyClickedRoute === selectedRoute.href, '길찾기 버튼을 누를 때만 경로 링크 활성화')
     check(document.querySelector('.cafe-recommendations-heading small').textContent.includes(selectedName), '선택 음식점 기준 카페 추천')
     check(document.querySelectorAll('.cafe-list li').length === 3, '가까운 카페 3곳 표시')
     check(!!document.querySelector('.daily-ranking'), '선택 후 오늘 TOP 3 표시')
@@ -100,6 +111,7 @@
     check([...document.querySelectorAll('.cafe-copy strong')].map((node) => node.textContent).join('|') === cafeNames.join('|'), '별점 추가 후에도 거리순 유지')
     const cafeSaved = JSON.parse(localStorage.getItem('nearby-table:cafe-selections:v1'))
     check(cafeSaved.version === 1 && Object.values(cafeSaved.counts).includes(afterStars), '카페 별점 별도 저장')
+    check(directionsOpenCount === 0, '카페 선택도 지도 자동 호출 없음')
 
     document.querySelector('.steps-fortune').open = true
     select('태어난 연도', '2007')
@@ -116,9 +128,11 @@
     document.querySelector('.fortune-form button').click()
     await waitFor(() => !!document.querySelector('.fortune-result'))
     check(!!document.querySelector('.fortune-restaurant strong'), '성인 운세 음식점 추천')
+    check(directionsOpenCount === 0, '운세 추천도 지도 자동 호출 없음')
     document.querySelector('.fortune-restaurant button').click()
     await waitFor(() => !!document.querySelector('.fortune-directions-fallback'))
     check(!!document.querySelector('.fortune-directions-fallback'), '운세 길찾기 팝업 차단 안내')
+    check(directionsOpenCount === 1, '운세 길찾기 버튼을 눌렀을 때만 지도 호출')
     check(new URL(openedDirectionsUrl).hostname === 'map.kakao.com', '운세 길찾기도 카카오맵으로 통일')
     check(document.querySelector('.fortune-directions-fallback').href === openedDirectionsUrl, '운세 팝업 차단 대체 링크도 카카오맵')
     document.querySelector('.steps-fortune').open = false
@@ -126,6 +140,7 @@
     draw()
     await waitFor(() => !document.querySelector('.cafe-recommendations') && candidates().length === 2)
     const nativeSetItem = Storage.prototype.setItem
+    const callsBeforeStorageFailure = directionsOpenCount
     try {
       Storage.prototype.setItem = () => {
         throw new DOMException('Simulated storage unavailable', 'QuotaExceededError')
@@ -134,6 +149,7 @@
       await waitFor(() => !!document.querySelector('.cafe-recommendations'))
       check(document.querySelector('.search-notice').textContent.includes('이번 화면에서만'), '저장소 오류 시 선택 유지 및 안내')
       check(document.querySelectorAll('.cafe-list li').length === 3, '저장소 오류 시에도 카페 추천 유지')
+      check(directionsOpenCount === callsBeforeStorageFailure, '저장소 오류 시 선택도 지도 자동 호출 없음')
       await waitFor(() => !document.querySelector('.cafe-select-button').disabled)
       document.querySelector('.cafe-select-button').click()
       await waitFor(() => !!document.querySelector('.cafe-list li.is-selected'))

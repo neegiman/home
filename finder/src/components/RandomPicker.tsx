@@ -1,13 +1,11 @@
 'use client'
 
-import { useState } from 'react'
-
 import { CafeRecommendations } from '@/components/CafeRecommendations'
 import { MenuPreview } from '@/components/MenuPreview'
 import { PopularityRating } from '@/components/PopularityRating'
 import { CATEGORY_EMOJIS } from '@/lib/category-display'
 import { formatStraightLineDistance } from '@/lib/distance'
-import { buildKakaoWalkingDirectionsUrl, openKakaoWalkingDirections } from '@/lib/kakao-directions'
+import { buildKakaoWalkingDirectionsUrl } from '@/lib/kakao-directions'
 import { buildNaverPlaceSearchUrl } from '@/lib/place-search'
 import type { Cafe } from '@/types/cafe'
 import type { Location, Restaurant } from '@/types/restaurant'
@@ -30,16 +28,7 @@ export function RandomPicker({
   candidates, isChoosing, isLoading, location, nearbyCafes, onChoose,
   onMarkLunchUnavailable, onPick, resultCount, selectedCandidateId, selectionError,
 }: RandomPickerProps) {
-  const [blockedDirectionsId, setBlockedDirectionsId] = useState<number | null>(null)
   const selectedRestaurant = candidates.find((restaurant) => restaurant.id === selectedCandidateId)
-
-  async function handleChoose(restaurant: Restaurant) {
-    const wasSaved = await onChoose(restaurant.id)
-    if (wasSaved) {
-      const opened = openKakaoWalkingDirections(location, restaurant)
-      setBlockedDirectionsId(opened ? null : restaurant.id)
-    }
-  }
 
   return (
     <section className="random-picker" aria-label="음식점 두 곳 랜덤 뽑기">
@@ -73,11 +62,6 @@ export function RandomPicker({
                 rel="noopener noreferrer"
                 target="_blank"
               >네이버에서 확인 ↗</a>
-              {blockedDirectionsId === selectedRestaurant.id ? (
-                <small className="directions-blocked" role="status">
-                  새 탭이 차단됐어요. 위 길찾기 링크를 눌러 주세요.
-                </small>
-              ) : null}
             </div>
           </article>
         ) : candidates.length > 0 ? (
@@ -95,7 +79,7 @@ export function RandomPicker({
                 <MenuPreview menus={restaurant.menus} />
                 <PopularityRating selectionCount={restaurant.selectionCount} stars={restaurant.popularityStars} />
                 <div className="candidate-actions">
-                  <button disabled={isChoosing} onClick={() => void handleChoose(restaurant)} type="button">
+                  <button disabled={isChoosing} onClick={() => void onChoose(restaurant.id)} type="button">
                     {isChoosing ? '저장 중…' : '선택'}
                   </button>
                   <a
