@@ -1,1 +1,1 @@
-export { default, metadata } from '../../src/app/layout'
+export { default, metadata, viewport } from '../../src/app/layout'

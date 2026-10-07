@@ -299,6 +299,7 @@ export function FortunePicker({
             <label>
               <span className="sr-only">태어난 연도</span>
               <select
+                aria-label="태어난 연도"
                 aria-describedby="fortune-age-note fortune-privacy"
                 autoComplete="bday-year"
                 onChange={(event) => updateBirthDate(event.target.value, birthMonth, birthDay)}
@@ -315,6 +316,7 @@ export function FortunePicker({
             <label>
               <span className="sr-only">태어난 월</span>
               <select
+                aria-label="태어난 월"
                 aria-describedby="fortune-age-note fortune-privacy"
                 autoComplete="bday-month"
                 disabled={!birthYear}
@@ -332,6 +334,7 @@ export function FortunePicker({
             <label>
               <span className="sr-only">태어난 일</span>
               <select
+                aria-label="태어난 일"
                 aria-describedby="fortune-age-note fortune-privacy"
                 autoComplete="bday-day"
                 disabled={!birthMonth}

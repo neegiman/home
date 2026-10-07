@@ -116,6 +116,20 @@ npm run build
 npm start
 ```
 
+아이폰 UI·UX 회귀 점검 (별도 터미널에서 `npm run build:pages`와 `npm run preview:pages` 실행 후):
+
+```bash
+npx playwright install webkit chromium
+npm run verify:mobile
+```
+
+WebKit의 iPhone 15 Pro Max 세로·가로 프로필, 375px 작은 화면, Chromium 모바일·PC에서
+취향 → 운세·저장 복원 → 후보 비교 → 선택 → 카페 → 전체 목록을 검사합니다.
+SVG 중심 정렬, 가로 넘침, 44px 조작 높이, 주요 글자 대비와 50개 기능 회귀 항목도 확인합니다.
+스크린샷은 `node_modules/.cache/mobile-ui/after/`에 저장됩니다.
+`FINDER_URL`로 공개 페이지를 검사할 수 있으며, 에뮬레이션은 실제 iPhone Safari의 검증을 대신하지 않습니다.
+로고와 운세·위치 아이콘은 폰트에 의존하지 않는 SVG이며, 노치·홈 바 여백과 브라우저 확대를 지원합니다.
+
 ## API
 
 현재 화면은 포함된 매장 스냅샷을 브라우저에서 직접 검색합니다. 아래 API는

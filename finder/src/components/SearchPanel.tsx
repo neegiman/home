@@ -8,6 +8,7 @@ import { FortunePicker } from '@/components/FortunePicker'
 import { RandomPicker } from '@/components/RandomPicker'
 import { RadiusSelector } from '@/components/RadiusSelector'
 import { RestaurantList } from '@/components/RestaurantList'
+import { SparkleIcon } from '@/components/SparkleIcon'
 import {
   OFFICE_DATA_CHECKED_AT,
   OFFICE_LOCATION,
@@ -427,11 +428,17 @@ export function SearchPanel() {
     <main className="app-shell steps-app" id="top">
       <header className="steps-header">
         <a className="brand steps-brand" href="#top" onClick={handleBackToTaste} aria-label="한끼지도 홈">
-          <span className="steps-brand-icon" aria-hidden="true">✦</span>
+          <span className="steps-brand-icon" aria-hidden="true"><SparkleIcon /></span>
           <strong>한끼지도</strong>
         </a>
         <div className="steps-header-location">
-          <span>⌖ 갈월동 오피스</span>
+          <span>
+            <svg aria-hidden="true" focusable="false" viewBox="0 0 24 24">
+              <path d="M20 10c0 6-8 12-8 12S4 16 4 10a8 8 0 1 1 16 0Z" />
+              <circle cx="12" cy="10" r="2.5" />
+            </svg>
+            갈월동 오피스
+          </span>
           <small>서울 용산구 한강대로71길 4</small>
         </div>
       </header>
@@ -445,13 +452,15 @@ export function SearchPanel() {
           </p>
           <details className="steps-fortune">
             <summary>
-              <span className="steps-fortune-spark" aria-hidden="true">✦</span>
+              <span className="steps-fortune-spark" aria-hidden="true"><SparkleIcon /></span>
               <span className="steps-fortune-copy">
                 <span className="steps-fortune-badge">오늘의 행운픽</span>
                 <strong>취향 대신 운세로 고를래요</strong>
                 <small>고민될 땐 오늘의 행운에 맡겨봐요 · 만 19세 이상</small>
               </span>
-              <span className="steps-expand" aria-hidden="true">+</span>
+              <span className="steps-expand" aria-hidden="true">
+                <svg focusable="false" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14" /></svg>
+              </span>
             </summary>
             <FortunePicker isLoading={isLoading} location={location} restaurants={lunchEligibleRestaurants} todayKey={todayKey} />
           </details>
